@@ -1,0 +1,1083 @@
+/* KPI Styles */
+.kpi-container {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+}
+
+.kpi-box {
+    flex: 1;
+    min-width: 200px;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.kpi-box:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.kpi-icon-wrapper {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    font-size: 24px;
+}
+
+.kpi-content {
+    flex: 1;
+}
+
+.kpi-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #212529;
+    line-height: 1.2;
+}
+
+.kpi-label {
+    color: #6c757d;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Colors */
+.kpi-blue .kpi-icon-wrapper {
+    background-color: #e7f1ff;
+    color: #0d6efd;
+}
+
+.kpi-green .kpi-icon-wrapper {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.kpi-purple .kpi-icon-wrapper {
+    background-color: #e0cffc;
+    color: #6610f2;
+}
+
+.kpi-orange .kpi-icon-wrapper {
+    background-color: #ffe5d0;
+    color: #fd7e14;
+}
+
+
+/* Dashboard General Styles */
+.o_dashboard_container {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #212529;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+}
+
+.kpi-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.kpi-table th {
+    background-color: #fcfcfc;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+    border-bottom: 1px solid #eee;
+    padding: 12px 8px;
+}
+
+.kpi-table td {
+    padding: 12px 8px;
+    vertical-align: middle;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 0.9rem;
+}
+
+.section-header {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    color: #495057;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    border-bottom: 1px solid #eee;
+    border-top: 1px solid #eee;
+}
+
+.badge-percent {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-block;
+    min-width: 60px;
+    text-align: center;
+}
+
+.active-dot {
+    height: 6px;
+    width: 6px;
+    background-color: #28a745;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: middle;
+    box-shadow: 0 0 4px rgba(40, 167, 69, 0.4);
+}
+
+.bg-soft-success {
+    background-color: #d1e7dd;
+    color: #0f5132;
+}
+
+.bg-soft-danger {
+    background-color: #f8d7da;
+    color: #842029;
+}
+
+.table-scroll-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+/* Waterfall Chart Styles */
+.waterfall-container {
+    position: relative;
+    height: 400px;
+    width: 100%;
+    display: flex;
+    border-bottom: 2px solid #e9ecef;
+    margin-top: 30px;
+    padding-bottom: 0px;
+}
+
+.waterfall-bar-group {
+    position: relative;
+    flex: 1;
+    height: 100%;
+    margin: 0 8px;
+}
+
+.waterfall-bar {
+    position: absolute;
+    width: 100%;
+    border-radius: 4px;
+    opacity: 0.9;
+    transition: all 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.waterfall-bar:hover {
+    opacity: 1;
+    transform: scaleX(1.05);
+    z-index: 10;
+    cursor: pointer;
+}
+
+.waterfall-value {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: #212529;
+    padding-bottom: 4px;
+    white-space: nowrap;
+}
+
+.waterfall-label {
+    position: absolute;
+    bottom: -35px;
+    width: 100%;
+    text-align: center;
+    font-size: 0.75rem;
+    color: #6c757d;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    transform: rotate(-15deg);
+    transform-origin: top center;
+}
+
+.waterfall-connector {
+    position: absolute;
+    height: 1px;
+    border-top: 2px dashed #adb5bd;
+    width: 300%;
+    left: 50%;
+    opacity: 0.4;
+    z-index: 0;
+    pointer-events: none;
+}
+
+/* Legend Styles */
+.legend-item {
+    transition: background-color 0.2s;
+    border-left: 4px solid transparent;
+}
+
+.legend-item:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.legend-label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #495057;
+}
+
+.legend-amount {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #212529;
+}
+
+.badge-legend {
+    font-size: 0.9rem;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-weight: 700;
+    min-width: 70px;
+    text-align: center;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* High contrast badges */
+.badge-stock {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ffcdd2;
+}
+
+.badge-purchase {
+    background-color: #e3f2fd;
+    color: #1565c0;
+    border: 1px solid #bbdefb;
+}
+
+.badge-timesheet {
+    background-color: #fff3e0;
+    color: #ef6c00;
+    border: 1px solid #ffe0b2;
+}
+
+.badge-expense {
+    background-color: #f3e5f5;
+    color: #6a1b9a;
+    border: 1px solid #e1bee7;
+}
+
+/* Chart Interactive Elements */
+.column-bar:hover {
+    opacity: 0.9;
+    transform: scaleY(1.02);
+    transform-origin: bottom;
+}
+
+.markers-group circle {
+    transition: r 0.2s;
+    cursor: pointer;
+}
+
+.markers-group circle:hover {
+    r: 6;
+    stroke: #333;
+    stroke-width: 3;
+}
+
+
+/* ═══════════════════════════════════════════════════════════
+   ESTILOS MIGRADOS DESDE EL XML
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Wrapper principal ── */
+.rp-toolbar {
+    background: #ffffff;
+    border: 1px solid #e2e6ea;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .05);
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+}
+
+/* ── FILA 1: Entidades (fondo diferenciado) ── */
+.rp-row-primary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 10px 14px;
+    gap: 8px;
+    background: #f8f9fb;
+    border-bottom: 1px solid #e2e6ea;
+}
+
+.rp-section-label {
+    font-size: 0.67rem;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: #5a6472;
+    /* oscurecido: antes #9aa3af */
+    white-space: nowrap;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+/* Chips de entidad (Ubicación / Proyectos) */
+.rp-entity-chip {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: #ffffff;
+    border: 1.5px solid #dde1e7;
+    border-radius: 9px;
+    padding: 5px 11px;
+    min-width: 130px;
+    max-width: 280px;
+    transition: border-color .15s, box-shadow .15s;
+}
+
+.rp-entity-chip:focus-within {
+    border-color: #4361ee;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, .1);
+}
+
+.rp-entity-chip>.fa {
+    color: #9aa3af;
+    font-size: 0.78rem;
+    flex-shrink: 0;
+}
+
+/* Overrides para el widget many2many_tags dentro del chip */
+.rp-entity-chip .o_field_many2many_tags {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+    font-size: 0.82rem;
+}
+
+.rp-divider-v {
+    width: 1px;
+    height: 22px;
+    background: #dde1e7;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.rp-spacer {
+    flex: 1;
+}
+
+/* Botón Recalcular */
+.rp-btn-recalc {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    background: #4361ee !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 9px !important;
+    padding: 7px 15px !important;
+    font-size: 0.82rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    box-shadow: 0 2px 8px rgba(67, 97, 238, .3) !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    transition: background .15s, box-shadow .15s !important;
+}
+
+.rp-btn-recalc:hover {
+    background: #2f4dd4 !important;
+    box-shadow: 0 4px 14px rgba(67, 97, 238, .4) !important;
+}
+
+/* ── FILA 2: Segmented Controls ── */
+.rp-row-secondary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 9px 14px;
+    gap: 6px;
+}
+
+/* Grupo de controles (segmented) */
+.rp-ctrl-group {
+    display: flex;
+    align-items: center;
+    background: #f1f3f5;
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+    flex-shrink: 0;
+}
+
+.rp-ctrl-label {
+    font-size: 0.64rem;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: #6b7280;
+    /* oscurecido: antes #b0b8c4 */
+    padding: 0 4px 0 5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Override radio buttons → segmented pills */
+.rp-ctrl-group .o_field_radio .o_radio_input {
+    display: none !important;
+}
+
+.rp-ctrl-group .o_field_radio {
+    display: flex !important;
+    gap: 2px !important;
+    flex-wrap: nowrap !important;
+}
+
+.rp-ctrl-group .o_field_radio .o_radio_item {
+    display: flex !important;
+    align-items: center !important;
+    padding: 4px 11px !important;
+    border-radius: 6px !important;
+    font-size: 0.78rem !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    /* oscurecido: antes #6b7280 */
+    cursor: pointer !important;
+    transition: background .1s, color .1s !important;
+    white-space: nowrap !important;
+    background: transparent !important;
+    border: none !important;
+    line-height: 1 !important;
+}
+
+.rp-ctrl-group .o_field_radio .o_radio_item:hover {
+    background: #e5e7eb !important;
+    color: #374151 !important;
+}
+
+.rp-ctrl-group .o_field_radio .o_radio_item.o_radio_input_selected,
+.rp-ctrl-group .o_field_radio .o_radio_item.o_radio_item_selected {
+    background: #ffffff !important;
+    color: #1a3ab8 !important;
+    /* azul oscuro: ratio ~7:1 sobre blanco */
+    font-weight: 700 !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .12) !important;
+}
+
+.rp-group-sep {
+    width: 1px;
+    height: 18px;
+    background: #e2e6ea;
+    flex-shrink: 0;
+    margin: 0 2px;
+    align-self: center;
+}
+
+/* Toggles compactos al lado derecho */
+.rp-toggle-zone {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.rp-toggle-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.rp-toggle-item .rp-t-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: #5a6472;
+    /* oscurecido: antes #9aa3af */
+}
+
+/* ── FILA 3: Contextual (fechas / tareas seleccionadas) ── */
+.rp-row-ctx {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 7px 14px 9px;
+    border-top: 1px dashed #e2e6ea;
+    background: #f8f9fb;
+}
+
+/* Chip de tareas seleccionadas */
+.rp-ctx-tasks {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #eef0fd;
+    border: 1px solid #c7cff8;
+    border-radius: 7px;
+    padding: 4px 10px;
+    min-width: 180px;
+    max-width: 360px;
+    transition: border-color .15s;
+}
+
+.rp-ctx-tasks:focus-within {
+    border-color: #4361ee;
+}
+
+.rp-ctx-tasks>.fa {
+    color: #1a3ab8;
+    /* azul oscuro legible */
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.rp-ctx-tasks .o_field_many2many_tags {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+    font-size: 0.8rem !important;
+}
+
+/* Chip de rango de fechas */
+.rp-ctx-dates {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: #fff8ed;
+    border: 1px solid #f5d89c;
+    border-radius: 7px;
+    padding: 4px 11px;
+}
+
+.rp-ctx-dates>.fa {
+    color: #b07d2a;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+}
+
+.rp-ctx-dates .o_field_date input,
+.rp-ctx-dates .o_field_date .o_input {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font-size: 0.78rem !important;
+    font-weight: 600 !important;
+    color: #92650a !important;
+    padding: 0 !important;
+    width: 95px !important;
+    outline: none !important;
+}
+
+.rp-date-arrow {
+    color: #d4a017;
+    font-size: 0.75rem;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+/* Lock icon para fechas no-custom */
+.rp-date-lock {
+    color: #d4a017;
+    font-size: 0.72rem;
+    opacity: .6;
+}
+
+/* ══════════════════════════════════════════════════════════
+                    TOOLBAR DE CÁPSULAS FLOTANTES (nueva estética)
+                    ══════════════════════════════════════════════════════════ */
+
+/* Banda flotante que agrupa las cápsulas */
+.rp-capsule-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    /* gap-3 equivalente aprox */
+    padding: 12px 16px;
+    background: transparent;
+    margin-bottom: 1.25rem;
+}
+
+/* Cápsula genérica: fondo blanco, bordes redondeados, sombra */
+.rp-capsule {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: #ffffff;
+    border: 1.5px solid #e2e6ea;
+    border-radius: 24px;
+    /* pill shape */
+    padding: 9px 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .07), 0 1px 2px rgba(0, 0, 0, .04);
+    transition: border-color .15s, box-shadow .15s;
+    min-width: 140px;
+}
+
+.rp-capsule:focus-within {
+    border-color: #4361ee;
+    box-shadow: 0 0 0 3px rgba(67, 97, 238, .12),
+        0 2px 8px rgba(0, 0, 0, .07);
+}
+
+/* Icono interno de la cápsula */
+.rp-capsule>.fa {
+    color: #9aa3af;
+    font-size: 0.78rem;
+    flex-shrink: 0;
+}
+
+/* Limpia estilos del widget many2many_tags dentro de la cápsula */
+.rp-capsule .o_field_many2many_tags,
+.rp-capsule .o_field_widget {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    background: transparent !important;
+    font-size: 0.88rem;
+}
+
+/* Cápsula para radio/select (periodo): sin ancho mínimo fijo */
+.rp-capsule-radio {
+    min-width: unset;
+    padding: 4px 10px;
+}
+
+/* Override: segmented pills dentro de cápsula */
+.rp-capsule-radio .o_field_radio .o_radio_input {
+    display: none !important;
+}
+
+.rp-capsule-radio .o_field_radio {
+    display: flex !important;
+    gap: 2px !important;
+    flex-wrap: nowrap !important;
+}
+
+.rp-capsule-radio .o_field_radio .o_radio_item {
+    display: flex !important;
+    align-items: center !important;
+    padding: 5px 12px !important;
+    border-radius: 17px !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    cursor: pointer !important;
+    transition: background .1s, color .1s !important;
+    white-space: nowrap !important;
+    background: transparent !important;
+    border: none !important;
+}
+
+.rp-capsule-radio .o_field_radio .o_radio_item:hover {
+    background: #f1f3f5 !important;
+}
+
+.rp-capsule-radio .o_field_radio .o_radio_item.o_radio_input_selected,
+.rp-capsule-radio .o_field_radio .o_radio_item.o_radio_item_selected {
+    background: #4361ee !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 4px rgba(67, 97, 238, .3) !important;
+}
+
+/* ── Botones segmented que reemplazan widget="radio" ──────────────────────
+   Mismos valores que .o_radio_item / .o_radio_item_selected para que la
+   estética sea idéntica. Se usan con type="object" para forzar el ciclo
+   completo save→recompute→reload que actualiza el campo Html "content".  */
+.rp-capsule-radio .rp-seg-wrap {
+    display: flex;
+    gap: 3px;
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+.rp-seg-btn {
+    display: flex !important;
+    align-items: center !important;
+    padding: 5px 12px !important;
+    border-radius: 17px !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    color: #374151 !important;
+    cursor: pointer !important;
+    transition: background .1s, color .1s !important;
+    white-space: nowrap !important;
+    background: transparent !important;
+    border: none !important;
+    line-height: 1 !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.rp-seg-btn:hover {
+    background: #f1f3f5 !important;
+    color: #374151 !important;
+}
+
+.rp-seg-btn-active {
+    background: #4361ee !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 1px 4px rgba(67, 97, 238, .3) !important;
+    border: none !important;
+}
+
+.rp-seg-btn-active:hover {
+    background: #2f4dd4 !important;
+    color: #ffffff !important;
+}
+
+/* ── Waterfall: clases del template QWeb (columnas en píxeles) ─────────── */
+.column-chart-wrapper {
+    position: relative;
+    overflow: visible;
+    margin-top: 50px;
+    margin-bottom: 55px;
+    /* espacio para etiquetas */
+}
+
+.column-chart-container {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    border-bottom: 2px solid #e9ecef;
+    overflow: visible;
+}
+
+.column-group {
+    position: relative;
+    flex: 1;
+    margin: 0 10px;
+    min-width: 0;
+}
+
+.waterfall-bar-abs {
+    position: absolute;
+    left: 0;
+    right: 0;
+    border-radius: 4px;
+    opacity: 0.9;
+    transition: all 0.3s;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.waterfall-bar-abs:hover {
+    opacity: 1;
+    transform: scaleX(1.05);
+    z-index: 10;
+    cursor: pointer;
+}
+
+.column-value-float {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #212529;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.column-label {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    font-size: 0.72rem;
+    color: #6c757d;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    line-height: 1.2;
+}
+
+/* KPI cobalt: facturas de cliente */
+.kpi-cobalt {
+    /*background: #e8eaf6 !important;*/
+    color: #1a237e !important;
+}
+
+.kpi-cobalt .kpi-icon-wrapper {
+    background: rgba(26, 35, 126, 0.12) !important;
+    color: #1a237e !important;
+}
+
+.kpi-cobalt .kpi-value {
+    color: #1a237e !important;
+}
+
+.kpi-cobalt .kpi-label {
+    color: #283593 !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+                    TOOLTIPS VISUALES — responsive, sin desbordamiento
+                    ══════════════════════════════════════════════════════════ */
+
+/* Base: el elemento padre necesita position:relative */
+.kpi-box[aria-label],
+.icon-tooltip[aria-label] {
+    position: relative;
+}
+
+/* ── Estilos compartidos del globo ── */
+.kpi-box[aria-label]:hover::after,
+.icon-tooltip[aria-label]:hover::after {
+    content: attr(aria-label);
+    position: absolute;
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.71rem;
+    font-weight: 400;
+    line-height: 1.45;
+    /* Ancho responsive: nunca más de 90% del viewport */
+    width: max-content;
+    max-width: unquote("min(450px, calc(90vw))");
+    white-space: normal;
+    text-align: justify;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+    z-index: 9999;
+    pointer-events: none;
+    word-break: break-word;
+}
+
+/* ── kpi-box: tooltip ARRIBA ── */
+.kpi-box[aria-label]:hover::after {
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    animation: kpiTipUp .12s ease;
+}
+
+.kpi-box[aria-label]:hover::before {
+    content: '';
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #1e293b;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+/* ── icon-tooltip (?): tooltip ABAJO para no salirse del card ── */
+.icon-tooltip[aria-label]:hover::after {
+    top: calc(100% + 10px);
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    animation: kpiTipDown .12s ease;
+}
+
+.icon-tooltip[aria-label]:hover::before {
+    content: '';
+    position: absolute;
+    top: calc(100% + 4px);
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-bottom-color: #1e293b;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+@keyframes kpiTipUp {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+@keyframes kpiTipDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* ── Variante: borde derecho (tooltip alineado a la derecha) ── */
+/* kpi-box edge-right */
+.kpi-box.tooltip-edge-right[aria-label]:hover::after {
+    left: auto;
+    right: 0;
+    transform: none;
+    animation: kpiTipUpRight .12s ease;
+}
+
+.kpi-box.tooltip-edge-right[aria-label]:hover::before {
+    left: auto;
+    right: 12px;
+    transform: none;
+}
+
+/* icon-tooltip edge-right */
+.icon-tooltip.tooltip-edge-right[aria-label]:hover::after {
+    left: auto;
+    right: 0;
+    transform: none;
+    animation: kpiTipDownRight .12s ease;
+}
+
+.icon-tooltip.tooltip-edge-right[aria-label]:hover::before {
+    left: auto;
+    right: 4px;
+    transform: none;
+}
+
+/* ── Variante: borde izquierdo (tooltip alineado a la izquierda) ── */
+/* kpi-box edge-left */
+.kpi-box.tooltip-edge-left[aria-label]:hover::after {
+    left: 0;
+    transform: none;
+    animation: kpiTipUpLeft .12s ease;
+}
+
+.kpi-box.tooltip-edge-left[aria-label]:hover::before {
+    left: 12px;
+    transform: none;
+}
+
+/* icon-tooltip edge-left */
+.icon-tooltip.tooltip-edge-left[aria-label]:hover::after {
+    left: 0;
+    transform: none;
+    animation: kpiTipDownLeft .12s ease;
+}
+
+.icon-tooltip.tooltip-edge-left[aria-label]:hover::before {
+    left: 4px;
+    transform: none;
+}
+
+@keyframes kpiTipUpRight {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes kpiTipUpLeft {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes kpiTipDownRight {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes kpiTipDownLeft {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Hover del icono ? */
+.icon-tooltip:hover .fa-question-circle {
+    color: #4361ee !important;
+}
+
+/* ── Contenedores: overflow:visible para que el tooltip no se recorte ── */
+.kpi-container {
+    overflow: visible !important;
+}
+
+/*
+                    * IMPORTANTE: Se ha eliminado el override de overflow a .o_content
+                    * y .o_form_sheet, debido a que rompía la capacidad de scroll nativa
+                    * en dispositivos móviles y tamaños de pantalla pequeños.
+                    *
+                    * .kpi-card tiene overflow:hidden en dashboard_task_views.xml
+                    * lo que recorta los pseudo-elementos ::after/::before del tooltip.
+                    * Se anula aquí para permitir que el texto del tooltip sea visible.
+                    */
+.kpi-card,
+.kpi-card>div:not(.collapse):not(.table-responsive),
+.kpi-card>div>h5,
+.kpi-card>div>h6,
+.icon-tooltip {
+    overflow: visible !important;
+}

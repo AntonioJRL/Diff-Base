@@ -1,0 +1,454 @@
+<odoo>
+    <record id="view_project_task_form_inherit_dashboard_button" model="ir.ui.view">
+        <field name="name">project.task.form.inherit.dashboard.button</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_form2" />
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_open_task_dashboard" type="object" class="oe_stat_button"
+                    icon="fa-tachometer">
+                    <div class="o_stat_info">
+                        <span class="o_stat_text">Dashboard</span>
+                    </div>
+                </button>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_task_update_form" model="ir.ui.view">
+        <field name="name">task.update.form</field>
+        <field name="model">task.update</field>
+        <field name="arch" type="xml">
+            <form string="task.update">
+                <div class="oe_button_box" name="button_box">
+                    <button type="object" name="action_view_sale_orders" class="oe_stat_button"
+                        icon="fa-dollar">
+                        <field name="sale_order_count" widget="statinfo" string="Órden de Venta" />
+                    </button>
+                    <button type="object" name="action_view_expenses" class="oe_stat_button"
+                        icon="fa-money">
+                        <field name="expense_count" widget="statinfo" string="Gastos" />
+                    </button>
+                    <button type="object" name="action_view_purchases" class="oe_stat_button"
+                        icon="fa-shopping-cart">
+                        <field name="purchase_count" widget="statinfo" string="Compras" />
+                    </button>
+                    <button type="object" name="action_view_timesheets" class="oe_stat_button"
+                        icon="fa-clock-o">
+                        <field name="timesheet_count" widget="statinfo" string="Hojas de Horas" />
+                    </button>
+                    <button type="object" name="action_views_requisitions" class="oe_stat_button"
+                        icon="fa-list-alt">
+                        <field name="requisition_count" widget="statinfo" string="Requisiciones" />
+                    </button>
+                    <button type="object" name="action_view_stock_moves" class="oe_stat_button"
+                        icon="fa-cubes">
+                        <field name="stock_move_count" widget="statinfo" string="Mov. Almacén" />
+                    </button>
+                </div>
+                <field name="content" widget="html" />
+            </form>
+        </field>
+    </record>
+
+    <template id="task_dashboard_template" name="Task Dashboard Profitability">
+        <div class="o_dashboard_container p-2 animate-fade-in">
+
+            <style>
+                .o_dashboard_container {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica
+                Neue", Arial, sans-serif;
+                color: #212529;
+                background-color: #f8f9fa;
+                border-radius: 8px;
+                }
+                .kpi-card {
+                background: white;
+                border-radius: 12px;
+                box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+                border: 1px solid rgba(0,0,0,0.05);
+                overflow: hidden;
+                margin-bottom: 20px;
+                }
+                .kpi-table th {
+                background-color: #fcfcfc;
+                text-transform: uppercase;
+                font-size: 0.75rem;
+                letter-spacing: 0.5px;
+                color: #6c757d;
+                border-bottom: 1px solid #eee;
+                padding: 12px 8px;
+                }
+                .kpi-table td {
+                padding: 12px 8px;
+                vertical-align: middle;
+                border-bottom: 1px solid #f0f0f0;
+                font-size: 0.9rem;
+                }
+                .section-header {
+                background-color: #f8f9fa;
+                font-weight: bold;
+                color: #495057;
+                font-size: 0.85rem;
+                padding: 8px 12px;
+                border-bottom: 1px solid #eee;
+                border-top: 1px solid #eee;
+                }
+                .badge-percent {
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 0.8rem;
+                font-weight: 600;
+                display: inline-block;
+                min-width: 60px;
+                text-align: center;
+                }
+                /* Indicador de actividad (punto verde) */
+                .active-dot {
+                height: 6px;
+                width: 6px;
+                background-color: #28a745;
+                border-radius: 50%;
+                display: inline-block;
+                margin-right: 6px;
+                vertical-align: middle;
+                box-shadow: 0 0 4px rgba(40, 167, 69, 0.4);
+                }
+                .bg-soft-success { background-color: #d1e7dd; color: #0f5132; }
+                .bg-soft-danger { background-color: #f8d7da; color: #842029; }
+                .table-scroll-container { max-height: 400px; overflow-y: auto; }
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity:
+                1; transform: translateY(0); } }
+                .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+            </style>
+
+            <t t-if="profitability">
+                <t t-set="has_production"
+                    t-value="profitability['invoiced_income'] != 0 or profitability['to_invoice_income'] != 0" />
+                <t t-set="has_expenses" t-value="profitability['total_expenses'] != 0" />
+                <t t-set="has_purchases" t-value="profitability['total_purchases'] != 0" />
+                <t t-set="has_timesheets" t-value="profitability['timesheet_cost'] != 0" />
+                <t t-set="has_stock" t-value="profitability['total_stock_moves'] != 0" />
+
+                <div class="kpi-card">
+                    <div class="p-3 border-bottom">
+                        <h5 class="m-0 fw-bold text-primary"><i class="fa fa-pie-chart me-2" />
+                            Rentabilidad</h5>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table kpi-table table-borderless mb-0">
+                            <colgroup>
+                                <col style="width:20%" />
+                                <col style="width:20%" />
+                                <col style="width:20%" />
+                                <col style="width:20%" />
+                                <col style="width:20%" />
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th>Concepto</th>
+                                    <th></th>
+                                    <th class="text-center">Realizado</th>
+                                    <th class="text-center">Pendiente</th>
+                                    <th class="text-center">Total Esperado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="5" class="section-header">INGRESOS</td>
+                                </tr>
+
+                                <tr>
+                                    <td
+                                        t-attf-class="ps-4 #{'fw-bold text-dark' if has_production else 'text-secondary'}">
+                                        <span t-if="has_production" class="active-dot" />Producción </td>
+                                    <td></td>
+                                    <td
+                                        t-attf-class="text-center #{'fw-bold text-dark' if has_production else 'text-muted'}">
+                                        <t t-out="format_monetary(profitability['invoiced_income'])" />
+                                    </td>
+                                    <td class="text-center text-muted">
+                                        <t
+                                            t-out="format_monetary(profitability['to_invoice_income'])" />
+                                    </td>
+                                    <td
+                                        t-attf-class="text-center #{'fw-bold text-dark' if has_production else 'text-muted'}">
+                                        <t t-out="format_monetary(profitability['total_entregado'])" />
+                                    </td>
+                                </tr>
+
+                                <tr
+                                    t-if="profitability['esperado_sin_orden'] and profitability['esperado_sin_orden'] > 0 and profitability.get('is_avance_preliminar', False)">
+                                    <td class="ps-4 text-muted">
+                                        <small>↳ Producción S/OV</small>
+                                    </td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td class="text-center text-muted">
+                                        <t
+                                            t-out="format_monetary(profitability['esperado_sin_orden'])" />
+                                    </td>
+                                </tr>
+
+                                <tr class="bg-light">
+                                    <td class="ps-4 fw-bold">Total Ingresos</td>
+                                    <td></td>
+                                    <td class="fw-bold text-center">
+                                        <t t-out="format_monetary(profitability['invoiced_income'])" />
+                                    </td>
+                                    <td class="fw-bold text-center">
+                                        <t
+                                            t-out="format_monetary(profitability['to_invoice_income'])" />
+                                    </td>
+                                    <td class="fw-bold text-center">
+                                        <t t-out="format_monetary(profitability['total_entregado'])" />
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td colspan="5" class="section-header">COSTOS</td>
+                                </tr>
+
+                                <tr>
+                                    <td
+                                        t-attf-class="ps-4 #{'fw-bold text-dark' if has_expenses else 'text-secondary'}">
+                                        <span t-if="has_expenses" class="active-dot" />Gastos </td>
+                                    <td></td>
+                                    <td
+                                        t-attf-class="text-center #{'text-danger fw-bold' if has_expenses else 'text-muted'}">
+                                        <t
+                                            t-out="format_monetary(-profitability['expenses_billed'])" />
+                                    </td>
+                                    <td class="text-center text-warning">
+                                        <t
+                                            t-out="format_monetary(-profitability['expenses_to_bill'])" />
+                                    </td>
+                                    <td
+                                        t-attf-class="text-center #{'text-dark fw-bold' if has_expenses else 'text-muted'}">
+                                        <t t-out="format_monetary(-profitability['total_expenses'])" />
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td
+                                        t-attf-class="ps-4 #{'fw-bold text-dark' if has_purchases else 'text-secondary'}">
+                                        <span t-if="has_purchases" class="active-dot" />Compras </td>
+                                    <td></td>
+                                    <td
+                                        t-attf-class="text-center #{'text-danger fw-bold' if has_purchases else 'text-muted'}">
+                                        <t
+                                            t-out="format_monetary(-profitability['purchases_billed'])" />
+                                    </td>
+                                    <td class="text-center text-warning">
+                                        <t
+                                            t-out="format_monetary(-profitability['purchases_to_bill'])" />
+                                    </td>
+                                    <td
+                                        t-attf-class="text-center #{'text-dark fw-bold' if has_purchases else 'text-muted'}">
+                                        <t
+                                            t-out="format_monetary(-profitability['total_purchases'])" />
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td
+                                        t-attf-class="ps-4 #{'fw-bold text-dark' if has_timesheets else 'text-secondary'}">
+                                        <span t-if="has_timesheets" class="active-dot" />Hojas de
+                                        Horas </td>
+                                    <td></td>
+                                    <td
+                                        t-attf-class="text-center #{'text-danger fw-bold' if has_timesheets else 'text-muted'}">
+                                        <t
+                                            t-out="format_monetary(-profitability['timesheet_billed'])" />
+                                    </td>
+                                    <td class="text-center text-warning">
+                                        <t
+                                            t-out="format_monetary(-profitability['timesheet_to_bill'])" />
+                                    </td>
+                                    <td
+                                        t-attf-class="text-center #{'text-dark fw-bold' if has_timesheets else 'text-muted'}">
+                                        <t t-out="format_monetary(-profitability['timesheet_cost'])" />
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td
+                                        t-attf-class="ps-4 #{'fw-bold text-dark' if has_stock else 'text-secondary'}">
+                                        <span t-if="has_stock" class="active-dot" />Mov. Almacén </td>
+                                    <td></td>
+                                    <td
+                                        t-attf-class="text-center #{'text-danger fw-bold' if has_stock else 'text-muted'}">
+                                        <t t-out="format_monetary(-profitability['stock_billed'])" />
+                                    </td>
+                                    <td class="text-center text-warning">
+                                        <t t-out="format_monetary(-profitability['stock_to_bill'])" />
+                                    </td>
+                                    <td
+                                        t-attf-class="text-center #{'text-dark fw-bold' if has_stock else 'text-muted'}">
+                                        <t
+                                            t-out="format_monetary(-profitability['total_stock_moves'])" />
+                                    </td>
+                                </tr>
+
+                                <tr class="bg-light">
+                                    <td class="ps-4 fw-bold">Total Costos</td>
+                                    <td></td>
+                                    <td class="fw-bold text-center">
+                                        <t
+                                            t-out="format_monetary(-profitability['total_facturado'])" />
+                                    </td>
+                                    <td class="fw-bold text-center">
+                                        <t
+                                            t-out="format_monetary(-profitability['total_a_facturar'])" />
+                                    </td>
+                                    <td class="fw-bold text-center">
+                                        <t t-out="format_monetary(-profitability['total_costs'])" />
+                                    </td>
+                                </tr>
+                            </tbody>
+
+                            <tfoot>
+                                <tr>
+                                    <td class="fw-bold text-primary fs-6 p-3">Margen Neto</td>
+                                    <td></td>
+                                    <td
+                                        t-attf-class="text-center fw-bold fs-6 p-3 #{'text-success' if profitability['total_billed_invoiced'] &gt;= 0 else 'text-danger'}">
+                                        <t
+                                            t-out="format_monetary(profitability['total_billed_invoiced'])" />
+                                    </td>
+                                    <td
+                                        t-attf-class="text-center fw-bold fs-6 p-3 #{'text-success' if profitability['total_to_bill_to_invoice'] &gt;= 0 else 'text-danger'}">
+                                        <t
+                                            t-out="format_monetary(profitability['total_to_bill_to_invoice'])" />
+                                    </td>
+                                    <td
+                                        t-attf-class="text-center fw-bold fs-6 p-3 #{'text-success' if profitability['total_expected'] &gt;= 0 else 'text-danger'}">
+                                        <t t-out="format_monetary(profitability['total_expected'])" />
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td></td>
+                                    <td class="text-center pb-3">
+                                        <div
+                                            t-attf-class="badge-percent #{'bg-soft-success' if profitability['facturado_margen'] and profitability['facturado_margen'] &gt;= 0 else 'bg-soft-danger'}">
+                                            <t t-if="profitability['facturado_margen'] is not False"
+                                                t-out="format_signed_percentage(profitability['facturado_margen'])" />
+                                            <t t-else="">-</t>
+                                        </div>
+                                    </td>
+                                    <td class="text-center pb-3">
+                                        <div
+                                            t-attf-class="badge-percent #{'bg-soft-success' if profitability['billed_invoiced_percentage'] and profitability['billed_invoiced_percentage'] &gt;= 0 else 'bg-soft-danger'}">
+                                            <t
+                                                t-if="profitability['billed_invoiced_percentage'] is not False"
+                                                t-out="format_signed_percentage(profitability['billed_invoiced_percentage'])" />
+                                            <t t-else="">-</t>
+                                        </div>
+                                    </td>
+                                    <td class="text-center pb-3">
+                                        <div
+                                            t-attf-class="badge-percent #{'bg-soft-success' if profitability['expected_percentage'] and profitability['expected_percentage'] &gt;= 0 else 'bg-soft-danger'}">
+                                            <t
+                                                t-if="profitability['expected_percentage'] is not False"
+                                                t-out="format_signed_percentage(profitability['expected_percentage'])" />
+                                            <t t-else="">-</t>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <div t-if="stock_moves_list" class="kpi-card mt-4">
+                    <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 fw-bold text-dark"><i class="fa fa-cubes me-2 text-primary" />Detalle
+                            de Materiales</h6>
+                    </div>
+
+                    <div class="table-responsive table-scroll-container">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="bg-light sticky-top" style="z-index: 1;">
+                                <tr>
+                                    <th class="ps-3 text-center">Estado</th>
+                                    <th class="text-center">Requisición</th>
+                                    <th class="text-center">Fecha</th>
+                                    <th class="text-center">Referencia</th>
+                                    <th>Producto</th>
+                                    <th>Ubicaciones</th>
+                                    <th class="text-end">Cant.</th>
+                                    <th class="text-end">Costo Unit.</th>
+                                    <th class="text-end pe-3">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr t-foreach="stock_moves_list" t-as="move">
+                                    <td class="text-center ps-3">
+                                        <span
+                                            t-attf-class="badge rounded-pill fw-bold #{'bg-success text-white' if move['state_raw'] == 'done' else 'bg-warning text-dark'}"
+                                            style="font-size: 0.85rem; padding: 6px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); letter-spacing: 0.5px;"
+                                            t-esc="move['state_label']" />
+                                    </td>
+
+                                    <td class="text-center">
+                                        <span class="fw-bold text-secondary"
+                                            style="font-size: 0.85rem;" t-esc="move['requisition']" />
+                                    </td>
+                                    <td class="text-center text-muted">
+                                        <small t-esc="move['date']" t-options='{"widget": "date"}' />
+                                    </td>
+                                    <td class="text-center">
+                                        <a t-att-href="move['picking_url']" target="_blank"
+                                            class="text-decoration-none fw-bold text-primary"
+                                            style="font-size: 0.9rem;">
+                                            <t t-esc="move['picking']" />
+                                        </a>
+                                        <div t-if="move['reference']" class="small text-muted"
+                                            t-esc="move['reference']" />
+                                    </td>
+                                    <td>
+                                        <span class="fw-bold text-dark" t-esc="move['product_name']" />
+                                        <div t-if="move['lot_name'] != '-'"
+                                            class="small text-muted mt-1">
+                                            <i class="fa fa-barcode me-1" />
+                                            <t t-esc="move['lot_name']" />
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column small"
+                                            style="line-height: 1.2;">
+                                            <div>
+                                                <span class="text-muted me-1">De:</span>
+                                                <span class="text-dark" t-esc="move['location_id']" />
+                                            </div>
+                                            <div>
+                                                <span class="text-muted me-1">A:</span>
+                                                <span class="text-dark"
+                                                    t-esc="move['location_dest_id']" />
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-end">
+                                        <span class="fw-bold" t-esc="move['quantity']" />
+                                        <small class="text-muted ms-1" t-esc="move['uom']" />
+                                    </td>
+                                    <td class="text-end text-muted">
+                                        <small>
+                                            <t t-out="format_monetary(move['price_unit'])" />
+                                        </small>
+                                    </td>
+                                    <td class="text-end fw-bold text-danger pe-3">
+                                        <t t-out="format_monetary(move['total_cost'])" />
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </t>
+        </div>
+    </template>
+</odoo>

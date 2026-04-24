@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- VISTA FORM DEL WIZARD -->
+    <record id="view_project_sub_update_reclassify_wizard_form" model="ir.ui.view">
+        <field name="name">project.sub.update.reclassify.wizard.form</field>
+        <field name="model">project.sub.update.reclassify.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reasignación de Avances">
+                <group>
+                    <div class="alert alert-info" role="alert" colspan="2">
+                        <i class="fa fa-info-circle" /> Esta acción moverá los avances seleccionados
+                        al nuevo Proyecto y Tarea. </div>
+                </group>
+
+                <group string="Destino">
+                    <group>
+                        <field name="project_id" options="{'no_create': True, 'no_open': True}"
+                            placeholder="Seleccione el nuevo Proyecto." />
+
+                        <field name="update_id" options="{'no_create': True, 'no_open': True}"
+                            placeholder="Seleccione la Actualización."
+                            domain="[('project_id', '=', project_id)]" />
+                    </group>
+                    <group>
+                        <field name="task_id" options="{'no_create': True, 'no_open': True}"
+                            placeholder="Seleccione la nueva Tarea." />
+                    </group>
+                </group>
+
+
+                <group string="Avances a Reasignar">
+                    <field name="project_sub_update_ids" nolabel="1" colspan="2"
+                        options="{'no_create': True}">
+                        <tree create="0" delete="1" editable="top">
+                            <field name="name" />
+                            <field name="date" />
+                            <field name="project_id" string="Proyecto Actual" />
+                            <field name="task_id" string="Tarea Actual" />
+                            <field name="unit_progress" />
+                        </tree>
+                    </field>
+                </group>
+
+                <footer>
+                    <button name="action_reclassify" string="Reasignar Avances" type="object"
+                        class="btn-primary" icon="fa-exchange" data-hotkey="q" />
+                    <button string="Cancelar" class="btn-secondary" special="cancel" data-hotkey="z" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <!-- ACCIÓN DE VENTANA -->
+    <record id="action_project_sub_update_reclassify_binding" model="ir.actions.act_window">
+        <field name="name">🔄Reasignar</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.sub.update.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_sub_update_reclassify_wizard_form" />
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="project_modificaciones.model_project_sub_update" />
+        <field name="binding_view_types">list,form</field>
+        <field name="groups_id" eval="[(4, ref('base.group_system'))]" />
+    </record>
+
+    <!-- ACCIÓN DE VENTANA (Standalone para Menú) -->
+    <record id="action_project_sub_update_reclassify_menu" model="ir.actions.act_window">
+        <field name="name">Reasignación de Avances</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.sub.update.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_sub_update_reclassify_wizard_form" />
+        <field name="target">new</field>
+
+    </record>
+
+</odoo>

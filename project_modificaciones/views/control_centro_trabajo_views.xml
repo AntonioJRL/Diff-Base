@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_centro_avance_form" model="ir.ui.view">
+        <field name="name">control.centro.trabajo.form</field>
+        <field name="model">control.centro.trabajo</field>
+        <field name="arch" type="xml">
+            <form string="Centro De Trabajo">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Centro De Trabajo" />
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="cliente" class="oe_inline"
+                                />
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_centro_avance_list" model="ir.ui.view">
+        <field name="name">control.centro.trabajo.list</field>
+        <field name="model">control.centro.trabajo</field>
+        <field name="arch" type="xml">
+            <tree string="Centro De Trabajo" decoration-info="cliente" editable="top">
+                <field name="name" />
+                <field name="cliente"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_control_centro_trabajo" model="ir.actions.act_window">
+        <field name="name">Centro de Trabajo</field>
+        <field name="res_model">control.centro.trabajo</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crea tu primer Centro De Trabajo
+            </p>
+        </field>
+    </record>
+</odoo>

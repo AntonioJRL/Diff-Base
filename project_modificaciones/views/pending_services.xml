@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vistas para Servicios Pendientes -->
+    <record id="view_pending_service_form" model="ir.ui.view">
+        <field name="name">pending.service.form</field>
+        <field name="model">pending.service</field>
+        <field name="arch" type="xml">
+            <form string="Servicio Pendiente">
+                <field name="active" invisible="1"/>
+                <div class="alert alert-warning" role="alert" invisible="active">
+                    <strong>Archivado</strong> Este servicio pendiente ha sido archivado.
+                </div>
+                <header>
+                    <button name="action_set_to_pending" type="object"
+                        string="Pendiente" class="btn-warning" invisible="state != 'draft'"/>
+                    <button name="action_assign" type="object"
+                        string="Asignada" class="btn-primary" invisible="state != 'pending'"/>
+                    <button name="action_cancel" type="object" string="Cancelada" class="btn-danger"
+                        invisible="state == 'canceled'"/>
+                    <button name="action_set_to_draft" type="object" string="Borrador" class="btn-secondary"
+                        invisible="state == 'draft'"/>
+                    <button name="action_create_tasks" type="object" string="Generar Tareas"
+                        class="oe_highlight"
+                        confirm="¿Desea generar las tareas pendientes en el proyecto del supervisor?"/>
+                    <button name="action_create_sale_order"
+                        type="object"
+                        string="Crear Cotización"
+                        class="oe_highlight"
+                        confirm="Se creará una Orden de Venta y las tareas en el proyecto del supervisor. ¿Continuar?"/>
+                    <button name="action_create_project_update" type="object" string="Registrar Avance" class="oe_highlight" confirm="Esto generará líneas de avance en el reporte del día. ¿Continuar?"/>
+
+                    <button name="action_update_progress" type="object" string="Recalcular Avances" class="btn-info" icon="fa-refresh" help="Actualiza el total de avances sumando los registros físicos actuales."/>
+                    
+                    <button name="toggle_active" type="object" string="Archivar" class="btn-secondary"
+                        invisible="not active" groups="base.group_user"/>
+                    <button name="toggle_active" type="object" string="Restaurar" class="btn-primary"
+                        invisible="active" groups="base.group_user"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_project" type="object" class="oe_stat_button" icon="fa-folder" invisible="not supervisor_id or not supervisor_id.proyecto_supervisor">
+                            <field string="Proyecto" name="supervisor_id" widget="statinfo"/>
+                        </button>
+                        <button name="action_view_tasks" type="object" class="oe_stat_button" icon="fa-tasks" invisible="task_count == 0">
+                            <field string="Tareas" name="task_count" widget="statinfo"/>
+                        </button>
+                        <button name="action_view_sale_orders" type="object" class="oe_stat_button" icon="fa-shopping-cart" invisible="sale_order_count == 0">
+                            <field string="Órdenes de Venta" name="sale_order_count" widget="statinfo"/>
+                        </button>
+                        <button name="action_view_scaffoldings" type="object" class="oe_stat_button" icon="fa-cubes" invisible="scaffolding_count == 0">
+                            <field string="Andamios" name="scaffolding_count" widget="statinfo" />
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nombre del Servicio"
+                                readonly="not manage_via_or"/> 
+                        </h1>
+                    </div>
+                    <group>
+                        <field name="descripcion_servicio"/>  <!-- Nuevo campo -->
+                        <group>
+                            <field name="date"/>
+                            <field name="supervisor_id" options="{'no_create': True, 'no_edit': True, 'no_open': True,}" />
+                            <field name="order_number"/>
+                            <field name="cliente_servicio" widget="res_partner_many2one" />
+                            <field name="license_ids" widget="many2many_tags" options="{'no_open': False}" context="{'default_date': date, 'default_disc': disciplina_id, 'default_pend': name, 'default_supervisor_id':supervisor_id, 'default_notes': descripcion_servicio}"/>
+                            <field name="manage_via_or"/>
+                            
+                        </group>
+                        <group>
+                            <field name="disciplina_id" readonly="state != 'draft'"/> <!-- Solo editable en borrador -->
+                            <field name="supervisor_planta_id"/>
+                            <!--<field name="centro_trabajo"/>-->
+                            <field name="planta"/>
+                            <field name="planta_centro"/>
+                            <field name="ot_number"/>
+                            <field name="total" invisible="1" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Líneas de Servicio">
+                            <field name="service_line_ids">
+                                <tree editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="partida" string="Partida" readonly="1" force_save="1"/>
+                                    <field name="product_id" options="{'no_create': True, 'no_edit': True, 'no_open': True,}"/>
+                                    <field name="quantity"/>
+                                    <field name="task_id" optional="show"/>
+                                    <field name="total_avances"/>
+                                    <field name="price_unit"/>
+                                    <field name="total"/>
+                                </tree>
+                            </field>
+                            <group class="oe_subtotal_footer" colspan="2" name="pend_total">
+                                <div class="oe_inline o_td_label">
+                                    <label for="total"/>
+                                </div>
+                                <field name="total" nolabel="1" class="oe_subtotal_footer_separator"/>
+                                <field name="total" class="oe_subtotal_footer_separator" invisible="state not in ('post', 'done')"/>
+                            </group>
+                        </page>
+                        <page string="Avances">
+                            <field name="avances_pend">
+                                <tree create="0" delete="0"> <!--editable="bottom"-->
+                                    <field name="name" />
+                                    <field name="date" />
+                                    <field name="project_id" />
+                                    <field name="task_id" />
+                                    <field name="unit_progress" sum="unit_progress" />
+                                    <field name="sale_current" sum="sale_current" />
+                                    <field name="responsible_id" widget="many2one_avatar_user" />
+                                    <field name="avances_state" optional="show" widget="badge"
+                                        decoration-success="avances_state == 'assigned' or avances_state == 'done'"
+                                        decoration-info="avances_state == 'confirmed'"
+                                        decoration-warning="avances_state == 'draft'" />
+                                    <field name="state" readonly="1" widget="badge"
+                                        decoration-success="state == 'fact'"
+                                        decoration-danger="state == 'no_fact'" />
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_pending_service_tree" model="ir.ui.view">
+        <field name="name">pending.service.tree</field>
+        <field name="model">pending.service</field>
+        <field name="arch" type="xml">
+            <tree string="Servicios Pendientes" default_order="date desc">
+                <field name="date"/>
+                <field name="name"/>
+                <field name="order_number"/>
+                <field name="cliente_servicio"/>
+                <field name="descripcion_servicio"/>  <!-- Nuevo campo -->
+                <field name="supervisor_id"/>
+                <field name="supervisor_planta_id"/>
+                <field name="disciplina_id"/>
+                <field name="license_ids" widget="many2many_tags"/>
+                <field name="ot_number"/>
+                <field name="planta"/>
+                <field name="total"/>
+                <field name="state" widget="badge" 
+                    decoration-danger="state == 'canceled'" 
+                    decoration-warning="state == 'pending'" 
+                    decoration-success="state == 'assign'" />
+                <field name="manage_via_or"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Vista de Búsqueda -->
+    <record id="view_pending_service_search" model="ir.ui.view">
+        <field name="name">pending.service.search</field>
+        <field name="model">pending.service</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Servicios Pendientes">
+                <field name="name"/>
+                <field name="order_number"/>
+                <field name="ot_number"/>
+                <field name="supervisor_id"/>
+                <field name="cliente_servicio"/>
+                <field name="disciplina_id"/>
+                <field name="state"/>
+                <field name="date"/>
+                <field name="manage_via_or"/>
+                <field name="descripcion_servicio"/>  <!-- Nuevo campo -->
+                <separator/>
+                <filter name="filter_draft" string="Borrador" domain="[('state', '=', 'draft')]"/>
+                <filter name="filter_pending" string="Pendiente" domain="[('state', '=', 'pending')]"/>
+                <filter name="filter_assigned" string="Asignada" domain="[('state', '=', 'assigned')]"/>
+                <filter name="filter_canceled" string="Cancelada" domain="[('state', '=', 'canceled')]"/>
+                <separator/>
+                <filter name="archived" string="Archivado" domain="[('active', '=', False)]"/>
+                <group expand="0" string="Agrupar Por">
+                    <filter name="group_by_state" string="Estado" context="{'group_by': 'state'}"/>
+                    <filter name="group_by_supervisor" string="Supervisor" context="{'group_by': 'supervisor_id'}"/>
+                    <filter name="group_by_supervisor_planta" string="Supervisor de Planta" context="{'group_by': 'supervisor_planta_id'}"/>
+                    <filter name="cliente_servicio" string="Cliente" context="{'group_by': 'cliente_servicio'}"/>
+                    <filter name="group_by_disciplina" string="Disciplina" context="{'group_by': 'disciplina_id'}"/>
+                    <filter name="group_by_date" string="Fecha" context="{'group_by': 'date'}"/>
+                    <filter name="group_by_manage_via_or" string="Gestionar mediante OR" context="{'group_by': 'manage_via_or'}"/>
+                </group>
+                <searchpanel>
+                    <field name="state" string="Estado" enable_counters="1"/>
+                    <field name="cliente_servicio" string="Cliente" enable_counters="1" icon="fa-building"/>
+                    <field name="disciplina_id" string="Disciplina" enable_counters="1" icon="fa-wrench"/>
+                </searchpanel>
+            </search>
+        </field>
+    </record>
+
+    <!-- Acciones de Ventana -->
+    <record id="action_pending_service" model="ir.actions.act_window">
+        <field name="name">Servicios Pendientes</field>
+        <field name="res_model">pending.service</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_pending_service_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Crea tu primer Servicio Pendiente
+            </p>
+        </field>
+    </record>
+
+    <!-- Elementos de Menú -->
+
+</odoo>

@@ -1,0 +1,1450 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ACTION -->
+    <record id="action_project_profitability_report" model="ir.actions.act_window">
+        <field name="name">Tablero de Rentabilidad de Proyecto/s</field>
+        <field name="res_model">project.profitability.report</field>
+        <field name="view_mode">form</field>
+    </record>
+
+    <!-- Vista Tree Modificada -->
+    <record id="view_purchase_order_line_profitability_tree" model="ir.ui.view">
+        <field name="name">purchase.order.line.profitability.tree</field>
+        <field name="model">purchase.order.line</field>
+        <field name="arch" type="xml">
+            <tree string="Líneas de Compra" create="false" edit="false">
+                <field name="order_id" />
+                <field name="date_order" />
+                <field name="partner_id" />
+                <field name="project_id" optional="show" />
+                <field name="task_id" optional="show" />
+                <field name="product_id" />
+                <field name="name" optional="hide" />
+                <field name="product_qty" string="Cantidad" />
+                <field name="qty_received" string="Recibido" />
+                <field name="qty_invoiced" string="Facturado" />
+                <field name="price_unit" />
+                <field name="price_subtotal" sum="Total" />
+                <field name="state" invisible="1" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_sale_order_line_profitability_tree" model="ir.ui.view">
+        <field name="name">sale.order.line.profitability.tree</field>
+        <field name="model">sale.order.line</field>
+        <field name="arch" type="xml">
+            <tree string="Líneas de Venta" create="false" edit="false">
+                <field name="order_id" />
+                <field name="order_partner_id" string="Cliente" />
+                <field name="project_id" optional="show" />
+                <field name="task_id" optional="show" />
+                <field name="product_id" />
+                <field name="name" optional="hide" />
+                <field name="product_uom_qty" string="Cant. Contratada" />
+                <field name="qty_delivered" string="Entregado" />
+                <field name="qty_invoiced" string="Facturado" />
+                <field name="price_unit" />
+                <field name="price_subtotal" sum="Total" />
+                <field name="state" invisible="1" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_stock_move_profitability_tree" model="ir.ui.view">
+        <field name="name">stock.move.profitability.tree</field>
+        <field name="model">stock.move</field>
+        <field name="arch" type="xml">
+            <tree string="Movimientos de Almacén" create="false" edit="false"
+                decoration-danger="state == 'cancel'" decoration-info="state == 'draft'"
+                decoration-muted="state == 'done'">
+                <field name="origin" />
+                <field name="date" />
+                <field name="picking_id" />
+                <field name="project_id" optional="show" />
+                <field name="task_id" optional="show" />
+                <field name="product_id" />
+                <field name="product_qty" string="Solicitado" /> <!--product_uom_qty-->
+                <field name="price_unit" widget="monetary" />
+                <field name="importe" optional="hide" sum="Sum. Total" />
+                <field name="quantity" string="Entregado" /> <!--quantity-->
+                <field name="product_uom" groups="uom.group_uom" />
+                <field name="state" widget="badge" />
+            </tree>
+        </field>
+    </record>
+
+    <!-- FORM VIEW -->
+    <record id="view_project_profitability_report_form" model="ir.ui.view">
+        <field name="name">project.profitability.report.form</field>
+        <field name="model">project.profitability.report</field>
+        <field name="arch" type="xml">
+            <form string="Rentabilidad del Proyecto" create="false" delete="false">
+
+                <!-- ═══════════════════════════════════════════════════════════
+                     ESTILOS GLOBALES — Toolbar 3 filas + segmented controls
+                     ═══════════════════════════════════════════════════════════ -->
+
+                <sheet class="w-100 mw-100">
+
+                    <!-- ╔═══════════════════════════════════════════════════════════╗
+                         ║   TOOLBAR DE CÁPSULAS FLOTANTES                           ║
+                         ║   Cada filtro es una cápsula independiente:               ║
+                         ║   fondo blanco · border-radius 20px · sombra sutil        ║
+                         ╚═══════════════════════════════════════════════════════════╝ -->
+
+                    <!-- Fila 1: Entidades principales (Cliente, Ubicación, Proyectos) + Recalcular -->
+                    <div class="rp-capsule-bar">
+
+                        <!-- Cápsula: Cliente  -->
+                        <div class="rp-capsule">
+                            <i class="fa fa-user-o" title="Filtro por Cliente"/>
+                            <field name="partner_filter_ids"
+                                widget="many2many_tags"
+                                nolabel="1"
+                                placeholder="Cliente…"
+                                options="{'no_create': True}"
+                                force_save="1"
+                                class="flex-grow-1" />
+                        </div>
+
+                        <!-- Cápsula: Ubicaciones -->
+                        <div class="rp-capsule">
+                            <i class="fa fa-map-marker" title="Filtro por Ubicación"/>
+                            <field name="ubicacion_ids"
+                                widget="many2many_tags"
+                                nolabel="1"
+                                placeholder="Ubicación…"
+                                options="{'no_create': True}"
+                                force_save="1"
+                                class="flex-grow-1" />
+                        </div>
+
+                        <!-- Cápsula: Proyectos -->
+                        <div class="rp-capsule">
+                            <i class="fa fa-building-o" title="Filtro por Proyecto"/>
+                            <field name="project_ids"
+                                widget="many2many_tags"
+                                nolabel="1"
+                                placeholder="Proyectos…"
+                                options="{'no_create': True}"
+                                force_save="1"
+                                domain="[('is_proyecto_obra', '=', True)] + ([('ubicacion', 'in', ubicacion_ids)] if ubicacion_ids else []) + ([('partner_id', 'in', partner_filter_ids)] if partner_filter_ids else [])"
+                                class="flex-grow-1" />
+                        </div>
+
+                        <!-- Espaciador flexible -->
+                        <div class="rp-spacer" />
+
+                        <!-- Campo oculto requerido -->
+                        <field name="currency_id" invisible="1" />
+
+                        <!-- Botón Recalcular -->
+                        <button name="action_recalculate"
+                            type="object"
+                            class="rp-btn-recalc btn"
+                            help="Actualiza los valores del tablero.">
+                            <i class="fa fa-refresh" title="Recalcular"/> Recalcular </button>
+
+                        <!-- Botón Imprimir PDF -->
+                        <button name="action_print_report"
+                            type="object"
+                            class="btn btn-outline-secondary"
+                            style="display:flex !important; align-items:center !important;
+                                   gap:6px !important; border-radius:9px !important;
+                                   padding:7px 15px !important; font-size:0.82rem !important;
+                                   font-weight:600 !important; white-space:nowrap !important;
+                                   flex-shrink:0 !important;"
+                            help="Genera el reporte PDF ejecutivo del proyecto.">
+                            <i class="fa fa-file-pdf-o" title="Imprimir PDF"/> Imprimir PDF </button>
+
+                    </div>
+
+                    <!-- Fila 2: Segmented Controls (Tareas, Estado, Periodo, Vista, Toggles) -->
+                    <div class="rp-capsule-bar" style="margin-top:-10px;">
+
+                        <!-- Cápsula: Tipo de Tareas -->
+                        <div class="rp-capsule rp-capsule-radio">
+                            <i class="fa fa-tasks" style="color:#9aa3af;" title="Tipo de Tareas"/>
+                            <field name="filter_type" invisible="1" />
+                            <div class="rp-seg-wrap">
+                                <button name="action_set_filter_type" type="object"
+                                    context="{'_v': 'all'}"
+                                    invisible="filter_type == 'all'"
+                                    class="rp-seg-btn">Todas las Tareas</button>
+                                <button name="action_set_filter_type" type="object"
+                                    context="{'_v': 'all'}"
+                                    invisible="filter_type != 'all'"
+                                    class="rp-seg-btn rp-seg-btn-active">Todas las Tareas</button>
+                                <button name="action_set_filter_type" type="object"
+                                    context="{'_v': 'filter'}"
+                                    invisible="filter_type == 'filter'"
+                                    class="rp-seg-btn">Selección Manual</button>
+                                <button name="action_set_filter_type" type="object"
+                                    context="{'_v': 'filter'}"
+                                    invisible="filter_type != 'filter'"
+                                    class="rp-seg-btn rp-seg-btn-active">Selección Manual</button>
+                            </div>
+                        </div>
+
+                        <!-- Cápsula: Estado de Tareas (oculta en modo manual) -->
+                        <div class="rp-capsule rp-capsule-radio"
+                            invisible="filter_type == 'filter'">
+                            <i class="fa fa-flag-o" style="color:#9aa3af;" title="Estado de Tareas"/>
+                            <field name="task_state_filter" invisible="1" />
+                            <div class="rp-seg-wrap" style="flex-wrap:wrap;">
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': 'all'}"
+                                    invisible="task_state_filter == 'all'"
+                                    class="rp-seg-btn">Todas</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': 'all'}"
+                                    invisible="task_state_filter != 'all'"
+                                    class="rp-seg-btn rp-seg-btn-active">Todas</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': '01_in_progress'}"
+                                    invisible="task_state_filter == '01_in_progress'"
+                                    class="rp-seg-btn">En Proceso</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': '01_in_progress'}"
+                                    invisible="task_state_filter != '01_in_progress'"
+                                    class="rp-seg-btn rp-seg-btn-active">En Proceso</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': '1_done'}"
+                                    invisible="task_state_filter == '1_done'"
+                                    class="rp-seg-btn">Hecho</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': '1_done'}"
+                                    invisible="task_state_filter != '1_done'"
+                                    class="rp-seg-btn rp-seg-btn-active">Hecho</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': '1_canceled'}"
+                                    invisible="task_state_filter == '1_canceled'"
+                                    class="rp-seg-btn">Cancelado</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': '1_canceled'}"
+                                    invisible="task_state_filter != '1_canceled'"
+                                    class="rp-seg-btn rp-seg-btn-active">Cancelado</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': '04_waiting_normal'}"
+                                    invisible="task_state_filter == '04_waiting_normal'"
+                                    class="rp-seg-btn">Esperando</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': '04_waiting_normal'}"
+                                    invisible="task_state_filter != '04_waiting_normal'"
+                                    class="rp-seg-btn rp-seg-btn-active">Esperando</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': '03_approved'}"
+                                    invisible="task_state_filter == '03_approved'"
+                                    class="rp-seg-btn">Aprobado</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': '03_approved'}"
+                                    invisible="task_state_filter != '03_approved'"
+                                    class="rp-seg-btn rp-seg-btn-active">Aprobado</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': '02_changes_requested'}"
+                                    invisible="task_state_filter == '02_changes_requested'"
+                                    class="rp-seg-btn">Cambios</button>
+                                <button name="action_set_task_state_filter" type="object"
+                                    context="{'_v': '02_changes_requested'}"
+                                    invisible="task_state_filter != '02_changes_requested'"
+                                    class="rp-seg-btn rp-seg-btn-active">Cambios</button>
+                            </div>
+                        </div>
+
+                        <!-- Cápsula: Periodo (posición original: entre Estado y Vista) -->
+                        <div class="rp-capsule rp-capsule-radio">
+                            <i class="fa fa-calendar-o" style="color:#9aa3af;" title="Periodo"/>
+                            <field name="date_filter_type" invisible="1" />
+                            <div class="rp-seg-wrap">
+                                <button name="action_set_date_filter_type" type="object"
+                                    context="{'_v': 'none'}"
+                                    invisible="date_filter_type == 'none'"
+                                    class="rp-seg-btn">Sin Filtro</button>
+                                <button name="action_set_date_filter_type" type="object"
+                                    context="{'_v': 'none'}"
+                                    invisible="date_filter_type != 'none'"
+                                    class="rp-seg-btn rp-seg-btn-active">Sin Filtro</button>
+                                <button name="action_set_date_filter_type" type="object"
+                                    context="{'_v': 'today'}"
+                                    invisible="date_filter_type == 'today'"
+                                    class="rp-seg-btn">Hoy</button>
+                                <button name="action_set_date_filter_type" type="object"
+                                    context="{'_v': 'today'}"
+                                    invisible="date_filter_type != 'today'"
+                                    class="rp-seg-btn rp-seg-btn-active">Hoy</button>
+                                <button name="action_set_date_filter_type" type="object"
+                                    context="{'_v': 'this_month'}"
+                                    invisible="date_filter_type == 'this_month'"
+                                    class="rp-seg-btn">Mes</button>
+                                <button name="action_set_date_filter_type" type="object"
+                                    context="{'_v': 'this_month'}"
+                                    invisible="date_filter_type != 'this_month'"
+                                    class="rp-seg-btn rp-seg-btn-active">Mes</button>
+                                <button name="action_set_date_filter_type" type="object"
+                                    context="{'_v': 'this_year'}"
+                                    invisible="date_filter_type == 'this_year'"
+                                    class="rp-seg-btn">Año</button>
+                                <button name="action_set_date_filter_type" type="object"
+                                    context="{'_v': 'this_year'}"
+                                    invisible="date_filter_type != 'this_year'"
+                                    class="rp-seg-btn rp-seg-btn-active">Año</button>
+                                <button name="action_set_date_filter_type" type="object"
+                                    context="{'_v': 'custom'}"
+                                    invisible="date_filter_type == 'custom'"
+                                    class="rp-seg-btn">Personalizado</button>
+                                <button name="action_set_date_filter_type" type="object"
+                                    context="{'_v': 'custom'}"
+                                    invisible="date_filter_type != 'custom'"
+                                    class="rp-seg-btn rp-seg-btn-active">Personalizado</button>
+                            </div>
+                        </div>
+
+                        <!-- Cápsula: Vista / Gráfico -->
+                        <div class="rp-capsule rp-capsule-radio">
+                            <i class="fa fa-bar-chart" style="color:#9aa3af;" title="Tipo de Gráfico"/>
+                            <field name="chart_type" invisible="1" />
+                            <div class="rp-seg-wrap">
+                                <button name="action_set_chart_type" type="object"
+                                    context="{'_v': 'pie'}"
+                                    invisible="chart_type == 'pie'"
+                                    class="rp-seg-btn">Gráfico de Costos</button>
+                                <button name="action_set_chart_type" type="object"
+                                    context="{'_v': 'pie'}"
+                                    invisible="chart_type != 'pie'"
+                                    class="rp-seg-btn rp-seg-btn-active">Gráfico de Costos</button>
+                                <button name="action_set_chart_type" type="object"
+                                    context="{'_v': 'waterfall'}"
+                                    invisible="chart_type == 'waterfall'"
+                                    class="rp-seg-btn">Cascada</button>
+                                <button name="action_set_chart_type" type="object"
+                                    context="{'_v': 'waterfall'}"
+                                    invisible="chart_type != 'waterfall'"
+                                    class="rp-seg-btn rp-seg-btn-active">Cascada</button>
+                                <button name="action_set_chart_type" type="object"
+                                    context="{'_v': 'line'}"
+                                    invisible="chart_type == 'line'"
+                                    class="rp-seg-btn">Evolución Temporal</button>
+                                <button name="action_set_chart_type" type="object"
+                                    context="{'_v': 'line'}"
+                                    invisible="chart_type != 'line'"
+                                    class="rp-seg-btn rp-seg-btn-active">Evolución Temporal</button>
+                            </div>
+                        </div>
+
+                        <!-- Cápsula: Toggles (Archivados + Analítica) — zona derecha -->
+                        <div class="rp-capsule" style="gap:14px; margin-left:auto;">
+                            <div class="rp-toggle-item">
+                                <span class="rp-t-label">Archivados</span>
+                                <field name="include_archived"
+                                    widget="boolean_toggle"
+                                    nolabel="1" />
+                            </div>
+                            <div class="rp-divider-v" />
+                            <div class="rp-toggle-item">
+                                <span class="rp-t-label">Analítica</span>
+                                <field name="include_analytic_account"
+                                    widget="boolean_toggle"
+                                    nolabel="1" />
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Fila 3: Contextual — Tareas manuales y rango de fechas -->
+                    <div class="rp-capsule-bar"
+                        style="margin-top:-10px;"
+                        invisible="filter_type != 'filter' and date_filter_type == 'none'">
+
+                        <!-- Cápsula: Tareas seleccionadas manualmente -->
+                        <div class="rp-capsule"
+                            invisible="filter_type != 'filter'"
+                            style="min-width:200px; max-width:360px; background:#eef0fd; border-color:#c7cff8;">
+                            <i class="fa fa-check-square-o" style="color:#1a3ab8;" />
+                            <field name="task_ids"
+                                widget="many2many_tags"
+                                nolabel="1"
+                                placeholder="Seleccionar tareas…"
+                                options="{'no_create': True}"
+                                domain="[('project_id', 'in', project_ids)] if project_ids else []"
+                                class="flex-grow-1" />
+                        </div>
+
+                        <!-- Cápsula: Rango de fechas -->
+                        <div class="rp-capsule"
+                            invisible="date_filter_type == 'none'"
+                            style="background:#fff8ed; border-color:#f5d89c;">
+                            <i class="fa fa-calendar-o" style="color:#b07d2a;" />
+                            <field name="date_from"
+                                nolabel="1"
+                                placeholder="Desde"
+                                readonly="date_filter_type != 'custom'"
+                                force_save="1" />
+                            <span style="color:#d4a017; font-weight:700; font-size:.75rem;">→</span>
+                            <field name="date_to"
+                                nolabel="1"
+                                placeholder="Hasta"
+                                readonly="date_filter_type != 'custom'"
+                                force_save="1" />
+                            <i class="fa fa-lock"
+                                invisible="date_filter_type == 'custom'"
+                                style="color:#d4a017; font-size:.72rem; opacity:.6;"
+                                title="Fechas calculadas automáticamente" />
+                        </div>
+
+                    </div>
+                    <!-- FIN TOOLBAR -->
+
+
+                    <!-- ═══════════════════════════════════════════════════════════
+                         KPI CARDS — sin cambios
+                         ═══════════════════════════════════════════════════════════ -->
+                    <div class="o_horizontal_separator text-uppercase fw-bold mt-4 mb-3"
+                        style="color: #495057; border-bottom: 2px solid #e9ecef; padding-bottom: 10px;">
+                        <i class="fa fa-tachometer me-2" />Resumen Ejecutivo <span
+                            class="icon-tooltip"
+                            aria-label="Métricas y accesos directos del proyecto: tareas, avances físicos en campo, órdenes de venta y compra, gastos, requisiciones, movimientos de almacén, horas registradas, compensaciones y facturas."
+                            style="margin-left:8px; display:inline-flex; align-items:center; cursor:help;">
+                            <i class="fa fa-question-circle"
+                                style="color:#adb5bd;font-size:15px;transition:color 0.2s;" />
+                        </span>
+                    </div>
+
+                    <div class="kpi-container">
+                        <!-- Tareas -->
+                        <button name="action_view_tasks" type="object"
+                            class="kpi-box kpi-blue border-0 text-start gap-3 tooltip-edge-left"
+                            style="cursor: pointer;"
+                            aria-label="Tareas vinculadas al proyecto según los filtros activos. Haz clic para ver el listado completo.">
+                            <div class="kpi-icon-wrapper">
+                                <i class="fa fa-tasks" title="Tareas" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value">
+                                    <field name="task_count" readonly="1" />
+                                </div>
+                                <div class="kpi-label">Tareas</div>
+                            </div>
+                        </button>
+
+                        <!-- Avances Físicos -->
+                        <button name="action_view_avances" type="object"
+                            class="kpi-box kpi-blue border-0 text-start gap-3"
+                            style="cursor: pointer;"
+                            aria-label="Avances físicos (project.sub.update) registrados para las tareas filtradas. Reflejan el progreso real en campo. Haz clic para ver el detalle.">
+                            <div class="kpi-icon-wrapper">
+                                <i class="fa fa-bar-chart" title="Gráfico" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value">
+                                    <field name="avance_count" readonly="1" />
+                                </div>
+                                <div class="kpi-label">Avances Físicos</div>
+                            </div>
+                        </button>
+
+                        <!-- Órdenes de Venta -->
+                        <button name="action_view_sale_orders" type="object"
+                            class="kpi-box kpi-green border-0 text-start gap-3"
+                            style="cursor: pointer;"
+                            aria-label="Órdenes de Venta confirmadas (sale/done) relacionadas al proyecto. El monto suma el price_subtotal de cada línea. Haz clic para ver el detalle.">
+                            <div class="kpi-icon-wrapper">
+                                <i class="fa fa-dollar" title="Costo" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value">
+                                    <field name="sale_order_count" readonly="1" />
+                                </div>
+                                <div class="kpi-label">Órdenes Venta</div>
+                            </div>
+                        </button>
+
+                        <!-- Órdenes de Compra -->
+                        <button name="action_view_purchase_orders" type="object"
+                            class="kpi-box kpi-purple border-0 text-start gap-3"
+                            style="cursor: pointer;"
+                            aria-label="Órdenes de Compra en estado purchase/done vinculadas al proyecto por project_id o cuenta analítica. Haz clic para ver el detalle.">
+                            <div class="kpi-icon-wrapper">
+                                <i class="fa fa-shopping-cart" title="Compras" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value">
+                                    <field name="purchase_count" readonly="1" />
+                                </div>
+                                <div class="kpi-label">Órdenes Compra</div>
+                            </div>
+                        </button>
+
+                        <!-- Gastos -->
+                        <button name="action_view_expenses" type="object"
+                            class="kpi-box kpi-blue border-0 text-start"
+                            aria-label="Gastos de empleado (hr.expense) aprobados o liquidados vinculados al proyecto por project_id o cuenta analítica. Haz clic para ver el detalle."
+                            style="cursor: pointer; background: #e0f2f1; color: #00695c;">
+                            <div class="kpi-icon-wrapper"
+                                style="background: rgba(0, 105, 92, 0.1); color: #00695c;">
+                                <i class="fa fa-credit-card" title="Pagos" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value" style="color: #00695c;">
+                                    <field name="expense_count" readonly="1" />
+                                </div>
+                                <div class="kpi-label" style="color: #004d40;">Gastos</div>
+                            </div>
+                        </button>
+
+                        <!-- Requisiciones -->
+                        <button name="action_view_requisitions" type="object"
+                            class="kpi-box kpi-purple border-0 text-start"
+                            aria-label="Requisiciones de compra aprobadas o recibidas para el proyecto. Acumuladas desde cabecera (employee.purchase.requisition) y sus líneas (requisition.order). Haz clic para ver el detalle."
+                            style="cursor: pointer; background: #f3e5f5; color: #7b1fa2;">
+                            <div class="kpi-icon-wrapper"
+                                style="background: rgba(123, 31, 162, 0.1); color: #7b1fa2;">
+                                <i class="fa fa-list-alt" title="Detalle" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value" style="color: #7b1fa2;">
+                                    <field name="requisition_count" readonly="1" />
+                                </div>
+                                <div class="kpi-label" style="color: #4a148c;">Requisiciones</div>
+                            </div>
+                        </button>
+
+                        <!-- Stock Moves -->
+                        <button name="action_view_stock_moves" type="object"
+                            class="kpi-box border-0 text-start"
+                            aria-label="Movimientos de almacén completados (state=done) vinculados al proyecto. El costo es el valor de las capas de valoración (stock.valuation.layer). Haz clic para ver el detalle."
+                            style="cursor: pointer; background: #ffebee; color: #c62828;">
+                            <div class="kpi-icon-wrapper"
+                                style="background: rgba(198, 40, 40, 0.1); color: #c62828;">
+                                <i class="fa fa-cubes" title="Materiales" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value" style="color: #c62828;">
+                                    <field name="stock_move_count" readonly="1" />
+                                </div>
+                                <div class="kpi-label" style="color: #b71c1c;">Mov. Almacén</div>
+                            </div>
+                        </button>
+
+                        <!-- Horas -->
+                        <button name="action_view_timesheets" type="object"
+                            class="kpi-box kpi-orange border-0 text-start gap-3"
+                            style="cursor: pointer;"
+                            aria-label="Horas registradas en hojas de tiempo (timesheets) para las tareas del proyecto. Haz clic para ver el detalle.">
+                            <div class="kpi-icon-wrapper">
+                                <i class="fa fa-clock-o" title="Mano de Obra" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value">
+                                    <field name="timesheet_hours" widget="float_time" readonly="1" />
+                                </div>
+                                <div class="kpi-label">HOJAS DE HORAS</div>
+                            </div>
+                        </button>
+
+                        <!-- Compensaciones -->
+                        <button name="action_view_compensations" type="object"
+                            class="kpi-box border-0 text-start gap-3 tooltip-edge-right"
+                            style="cursor: pointer; background: #e3f2fd; color: #0d47a1;"
+                            aria-label="Compensaciones económicas registradas para el equipo asignado al proyecto. Haz clic para ver el detalle.">
+                            <div class="kpi-icon-wrapper"
+                                style="background: rgba(13, 71, 161, 0.1); color: #0d47a1;">
+                                <i class="fa fa-money" title="Gastos" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value" style="color: #0d47a1;">
+                                    <field name="compensation_count" readonly="1" />
+                                </div>
+                                <div class="kpi-label" style="color: #01579b;">Compensaciones</div>
+                            </div>
+                        </button>
+
+                        <!-- Facturas de Cliente ─ KPI cobalt (#1a237e / #e8eaf6) -->
+                        <button name="action_view_invoices" type="object"
+                            class="kpi-box kpi-cobalt border-0 text-start gap-3 tooltip-edge-right"
+                            style="cursor: pointer;"
+                            aria-label="Facturas de cliente (out_invoice) validadas generadas a partir de las Órdenes de Venta. El monto refleja lo realmente facturado. Haz clic para ver el detalle.">
+                            <div class="kpi-icon-wrapper">
+                                <i class="fa fa-file-text-o" title="Facturas" />
+                            </div>
+                            <div class="kpi-content">
+                                <div class="kpi-value">
+                                    <field name="invoice_count" readonly="1" />
+                                </div>
+                                <div class="kpi-label">Facturas Cliente</div>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- Hidden buttons for line-level access from the consolidated table -->
+                    <button name="action_view_sale_orders" type="object" class="d-none" />
+                    <button name="action_view_purchase_orders" type="object" class="d-none" />
+                    <button name="action_view_stock_moves" type="object" class="d-none" />
+
+                    <!-- Mejora 5 — Botón unificado de lazy-load (1 sólo round-trip) -->
+                    <button name="action_load_all_details" type="object"
+                        id="btn_load_all_details" class="d-none" />
+
+                    <!-- Botones individuales de fallback (ocultos) -->
+                    <button name="action_load_detail_purchases" type="object"
+                        id="btn_load_purchases" class="d-none" />
+                    <button name="action_load_detail_expenses" type="object"
+                        id="btn_load_expenses" class="d-none" />
+                    <button name="action_load_detail_stock" type="object"
+                        id="btn_load_stock" class="d-none" />
+                    <button name="action_load_detail_timesheets" type="object"
+                        id="btn_load_timesheets" class="d-none" />
+
+                    <field name="content" widget="html" nolabel="1" readonly="1" force_save="1" />
+
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         QWEB TEMPLATE — sin cambios respecto al original
+         ═══════════════════════════════════════════════════════════ -->
+    <template id="project_profitability_template">
+        <div class="o_dashboard_container p-2 animate-fade-in">
+
+            <!-- ALERTS -->
+            <div class="row mb-3" t-if="alert_negative_profit or alert_low_margin">
+                <div class="col-12">
+                    <div t-if="alert_negative_profit"
+                        class="alert alert-danger d-flex align-items-center shadow-sm" role="alert">
+                        <i class="fa fa-exclamation-triangle fa-2x me-3" />
+                        <div>
+                            <h5 class="alert-heading fw-bold mb-1">¡Alerta Crítica: Rentabilidad
+                                Negativa!</h5>
+                            <p class="mb-0">Los costos del proyecto han superado los ingresos
+                                facturados. Se requiere revisión inmediata.</p>
+                        </div>
+                    </div>
+                    <div t-if="alert_low_margin and not alert_negative_profit"
+                        class="alert alert-warning d-flex align-items-center shadow-sm" role="alert">
+                        <i class="fa fa-info-circle fa-2x me-3" />
+                        <div>
+                            <h5 class="alert-heading fw-bold mb-1">Margen de Ganancia Bajo</h5>
+                            <p class="mb-0">El margen de rentabilidad es inferior al 10%. Considere
+                                optimizar costos operativos.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RENTABILIDAD CONSOLIDADA -->
+            <div class="kpi-card">
+                <div class="p-3 border-bottom">
+                    <h5 class="m-0 fw-bold text-primary">
+                        <i class="fa fa-pie-chart me-2" />Rentabilidad Consolidada <span
+                            class="icon-tooltip"
+                            aria-label="Tabla de ingresos y costos del proyecto organizada en tres columnas: Facturado (facturas/asientos posted), Por Facturar (pendientes) y Total Esperado. La producción base es la suma de sale_current de los avances físicos."
+                            style="margin-left:8px; display:inline-flex; align-items:center; cursor:help;">
+                            <i class="fa fa-question-circle"
+                                style="color:#adb5bd;font-size:15px;transition:color 0.2s;" />
+                        </span>
+                    </h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table kpi-table table-borderless mb-0">
+                        <colgroup>
+                            <col style="width:28%" />
+                            <col style="width:18%" />
+                            <col style="width:18%" />
+                            <col style="width:18%" />
+                            <col style="width:18%" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>Concepto</th>
+                                <th />
+                                <th class="text-center"
+                                    title="Monto con documento contable confirmado (asiento posted)">
+                                    Facturado
+                                </th>
+                                <th class="text-center"
+                                    title="Costo incurrido pendiente de generar o confirmar el asiento contable">
+                                    Por Facturar
+                                </th>
+                                <th class="text-center">Total / Esperado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- ══ INGRESOS ══ -->
+                            <tr>
+                                <td colspan="5" class="section-header">INGRESOS</td>
+                            </tr>
+                            <tr>
+                                <td class="ps-4 fw-bold text-dark">
+                                    <a href="#"
+                                        onclick="var _b=document.querySelector('button[name=\'action_view_sale_orders\']'); if(_b) _b.click(); return false;"
+                                        class="text-reset text-decoration-none"
+                                        title="Ver Líneas de Venta"><span class="active-dot" />
+                                        Producción</a>
+                                </td>
+                                <td />
+                                <!-- Facturado = avances facturados | ref: facturas OV posted -->
+                                <td class="text-center" style="vertical-align:middle;">
+                                    <div class="fw-bold text-dark">
+                                        <t
+                                            t-out="format_monetary(profitability['production_avances_billed'])" />
+                                    </div>
+                                    <div style="font-size:0.65rem; color:#9aa3af; margin-top:2px;"
+                                        title="Facturas OV contabilizadas (posted)"> OV: <t
+                                            t-out="format_monetary(profitability['invoiced_income'])" />
+                                    </div>
+                                </td>
+                                <!-- Por Facturar = avances no facturados | ref: qty_to_invoice OV -->
+                                <td class="text-center" style="vertical-align:middle;">
+                                    <div class="fw-bold text-muted">
+                                        <t
+                                            t-out="format_monetary(profitability['production_avances_to_bill'])" />
+                                    </div>
+                                    <div style="font-size:0.65rem; color:#9aa3af; margin-top:2px;"
+                                        title="Pendiente de facturar en OV (qty_to_invoice)"> OV: <t
+                                            t-out="format_monetary(profitability['to_invoice_income'])" />
+                                    </div>
+                                </td>
+                                <!-- Total = suma avances | ref: expected OV -->
+                                <td class="text-center" style="vertical-align:middle;">
+                                    <div class="fw-bold text-dark">
+                                        <t
+                                            t-out="format_monetary(profitability['production_avances'])" />
+                                    </div>
+                                    <div style="font-size:0.65rem; color:#9aa3af; margin-top:2px;"
+                                        title="Ingreso total esperado según Órdenes de Venta"> OV: <t
+                                            t-out="format_monetary(profitability['expected_income'])" />
+                                    </div>
+                                </td>
+                            </tr>
+                            <!-- ══ COSTOS ══ -->
+                            <tr>
+                                <td colspan="5" class="section-header">COSTOS</td>
+                            </tr>
+                            <!-- Gastos: billed = hoja con asiento posted | to_bill = sin asiento -->
+                            <tr>
+                                <td
+                                    t-attf-class="ps-4 #{'text-dark fw-bold' if profitability['total_expenses'] > 0 else 'text-secondary'}">
+                                    <a href="#"
+                                        onclick="var _b=document.querySelector('button[name=\'action_view_expenses\']'); if(_b) _b.click(); return false;"
+                                        class="text-reset text-decoration-none" title="Ver Gastos">
+                                        Gastos</a>
+                                </td>
+                                <td />
+                                <td
+                                    t-attf-class="text-center #{'text-dark' if profitability['expenses_billed'] > 0 else 'text-muted'}">
+                                    <t t-out="format_monetary(-profitability['expenses_billed'])" />
+                                </td>
+                                <td
+                                    t-attf-class="text-center #{'text-muted' if not profitability['expenses_to_bill'] else ''}">
+                                    <t t-out="format_monetary(-profitability['expenses_to_bill'])" />
+                                </td>
+                                <td
+                                    t-attf-class="text-center fw-bold #{'text-dark' if profitability['total_expenses'] > 0 else 'text-muted'}">
+                                    <t t-out="format_monetary(-profitability['total_expenses'])" />
+                                </td>
+                            </tr>
+                            <!-- Compras: incurred = facturado + recibido sin bill | committed =
+                            ordenado no recibido -->
+                            <tr>
+                                <td
+                                    t-attf-class="ps-4 #{'text-dark fw-bold' if profitability['total_purchases'] > 0 else 'text-secondary'}">
+                                    <a href="#"
+                                        onclick="var _b=document.querySelector('button[name=\'action_view_purchase_orders\']'); if(_b) _b.click(); return false;"
+                                        class="text-reset text-decoration-none"
+                                        title="Ver Líneas de Compra">Compras</a>
+                                </td>
+                                <td />
+                                <td
+                                    t-attf-class="text-center #{'text-dark' if profitability['purchase_incurred'] > 0 else 'text-muted'}">
+                                    <t t-out="format_monetary(-profitability['purchase_incurred'])" />
+                                </td>
+                                <td
+                                    t-attf-class="text-center #{'text-muted' if not profitability['purchase_committed'] else ''}">
+                                    <t t-out="format_monetary(-profitability['purchase_committed'])" />
+                                </td>
+                                <td
+                                    t-attf-class="text-center fw-bold #{'text-dark' if profitability['total_purchases'] > 0 else 'text-muted'}">
+                                    <t t-out="format_monetary(-profitability['total_purchases'])" />
+                                </td>
+                            </tr>
+                            <!-- Hojas de Horas: billed = payslip posted | to_bill = horas sin
+                            asiento -->
+                            <tr>
+                                <td
+                                    t-attf-class="ps-4 #{'text-dark fw-bold' if profitability['timesheet_cost'] > 0 else 'text-secondary'}">
+                                    <a href="#"
+                                        onclick="var _b=document.querySelector('button[name=\'action_view_timesheets\']'); if(_b) _b.click(); return false;"
+                                        class="text-reset text-decoration-none"
+                                        title="Ver Hojas de Horas">Hojas de Horas</a>
+                                </td>
+                                <td />
+                                <td
+                                    t-attf-class="text-center #{'text-dark' if profitability['timesheet_billed'] > 0 else 'text-muted'}">
+                                    <t t-out="format_monetary(-profitability['timesheet_billed'])" />
+                                </td>
+                                <td
+                                    t-attf-class="text-center #{'text-muted' if not profitability['timesheet_to_bill'] else ''}">
+                                    <t t-out="format_monetary(-profitability['timesheet_to_bill'])" />
+                                </td>
+                                <td
+                                    t-attf-class="text-center fw-bold #{'text-dark' if profitability['timesheet_cost'] > 0 else 'text-muted'}">
+                                    <t t-out="format_monetary(-profitability['timesheet_cost'])" />
+                                </td>
+                            </tr>
+                            <!-- Mov. Almacén: billed = valoración con asiento posted | to_bill =
+                            sin asiento -->
+                            <tr>
+                                <td
+                                    t-attf-class="ps-4 #{'text-dark fw-bold' if profitability['total_stock_moves'] > 0 else 'text-secondary'}">
+                                    <a href="#"
+                                        onclick="var _b=document.querySelector('button[name=\'action_view_stock_moves\']'); if(_b) _b.click(); return false;"
+                                        class="text-reset text-decoration-none"
+                                        title="Ver Mov. Almacén">Mov. Almacén</a>
+                                </td>
+                                <td />
+                                <td
+                                    t-attf-class="text-center #{'text-dark' if profitability['stock_billed'] > 0 else 'text-muted'}">
+                                    <t t-out="format_monetary(-profitability['stock_billed'])" />
+                                </td>
+                                <td
+                                    t-attf-class="text-center #{'text-muted' if not profitability['stock_to_bill'] else ''}">
+                                    <t t-out="format_monetary(-profitability['stock_to_bill'])" />
+                                </td>
+                                <td
+                                    t-attf-class="text-center fw-bold #{'text-dark' if profitability['total_stock_moves'] > 0 else 'text-muted'}">
+                                    <t t-out="format_monetary(-profitability['total_stock_moves'])" />
+                                </td>
+                            </tr>
+                            <!-- Subtotal de costos por columna -->
+                            <tr class="bg-light border-top">
+                                <td class="ps-4 fw-bold text-secondary small text-uppercase">Total
+                                    Costos</td>
+                                <td />
+                                <td class="text-center fw-bold text-danger">
+                                    <t
+                                        t-out="format_monetary(-(
+                                        profitability['expenses_billed']
+                                        + profitability['purchase_incurred']
+                                        + profitability['timesheet_billed']
+                                        + profitability['stock_billed']
+                                    ))" />
+                                </td>
+                                <td class="text-center fw-bold" style="color:#e65100;">
+                                    <t
+                                        t-out="format_monetary(-(
+                                        profitability['expenses_to_bill']
+                                        + profitability['purchase_committed']
+                                        + profitability['timesheet_to_bill']
+                                        + profitability['stock_to_bill']
+                                    ))" />
+                                </td>
+                                <td class="text-center fw-bold text-dark">
+                                    <t t-out="format_monetary(-profitability['total_costs'])" />
+                                </td>
+                            </tr>
+                            <!-- Margen Total — se muestra en las 3 columnas numéricas -->
+                            <tr class="bg-light">
+                                <td class="ps-4 fw-bold">Margen Total</td>
+                                <td />
+                                <!-- Margen sobre lo ya Facturado -->
+                                <td
+                                    t-attf-class="text-center fw-bold #{'text-success' if profitability['margin_billed'] &gt;= 0 else 'text-danger'}">
+                                    <t t-out="format_monetary(profitability['margin_billed'])" />
+                                </td>
+                                <!-- Margen sobre lo Por Facturar -->
+                                <td
+                                    t-attf-class="text-center fw-bold #{'text-success' if profitability['margin_to_bill'] &gt;= 0 else 'text-danger'}">
+                                    <t t-out="format_monetary(profitability['margin_to_bill'])" />
+                                </td>
+                                <!-- Margen Total acumulado -->
+                                <td
+                                    t-attf-class="text-center fw-bold fs-6 p-3 #{'text-success' if profitability['margin_total'] &gt;= 0 else 'text-danger'}">
+                                    <t t-out="format_monetary(profitability['margin_total'])" />
+                                </td>
+                            </tr>
+                        </tbody>
+                        <!-- tfoot: porcentaje de margen por cada columna — base: producción de
+                        avances -->
+                        <tfoot>
+                            <tr>
+                                <td />
+                                <td />
+                                <!-- % Margen Facturado (avances facturados) -->
+                                <td class="text-center pb-3">
+                                    <div
+                                        t-attf-class="badge-percent #{'bg-soft-success' if profitability['margin_billed_pct'] &gt;= 0 else 'bg-soft-danger'}"
+                                        title="% de margen sobre avances facturados">
+                                        <t
+                                            t-out="format_percentage(profitability['margin_billed_pct'])" />
+                                    </div>
+                                </td>
+                                <!-- % Margen Por Facturar (avances no facturados) -->
+                                <td class="text-center pb-3">
+                                    <div
+                                        t-attf-class="badge-percent #{'bg-soft-success' if profitability['margin_to_bill_pct'] &gt;= 0 else 'bg-soft-danger'}"
+                                        title="% de margen sobre avances no facturados">
+                                        <t
+                                            t-out="format_percentage(profitability['margin_to_bill_pct'])" />
+                                    </div>
+                                </td>
+                                <!-- % Rentabilidad Global (base: total avances) -->
+                                <td class="text-center pb-3">
+                                    <div
+                                        t-attf-class="badge-percent #{'bg-soft-success' if profitability['profit_percentage'] &gt;= 0 else 'bg-soft-danger'}"
+                                        title="% rentabilidad global: (total avances − costos) / total avances">
+                                        <t
+                                            t-out="format_percentage(profitability['profit_percentage'])" />
+                                    </div>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- GRÁFICOS -->
+            <div class="kpi-card mt-4">
+                <div class="p-3 border-bottom">
+                    <h6 class="m-0 fw-bold text-dark">
+                        <i class="fa fa-bar-chart me-2 text-primary" />Distribución de Costos <span
+                            class="icon-tooltip"
+                            aria-label="Gráfica y desglose proporcional de los costos del proyecto: Compras, Gastos, Movimientos de Almacén y Mano de Obra (timesheets). Los porcentajes muestran el peso de cada rubro sobre el total de costos."
+                            style="margin-left:8px; display:inline-flex; align-items:center; cursor:help;">
+                            <i class="fa fa-question-circle"
+                                style="color:#adb5bd;font-size:15px;transition:color 0.2s;" />
+                        </span>
+                    </h6>
+                </div>
+                <div class="p-4">
+                    <t t-if="profitability['total_costs'] > 0 or column_data">
+                        <t t-if="wizard.chart_type == 'pie'">
+                            <div class="row align-items-center">
+                                <div class="col-md-5 d-flex justify-content-center mb-4 mb-md-0">
+                                    <div class="chart-container"
+                                        style="position:relative;width:220px;height:220px;border-radius:50%;opacity:0;animation:fadeIn 0.8s forwards;box-shadow:0 4px 15px rgba(0,0,0,0.1);">
+                                        <div class="chart-pie" t-att-style="chart_data['style']" />
+                                        <div class="chart-inner"
+                                            style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:65%;height:65%;background:white;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;box-shadow:inset 0 2px 5px rgba(0,0,0,0.05);">
+                                            <span
+                                                class="text-muted small text-uppercase fw-bold mb-1">Total
+                                                Costos</span>
+                                            <span class="fw-bold fs-4 text-dark">
+                                                <t
+                                                    t-out="format_monetary(profitability['total_costs'])" />
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-7">
+                                    <h6
+                                        class="mb-4 text-muted text-uppercase small fw-bold border-bottom pb-2">Detalle
+                                        de Distribución</h6>
+                                    <div class="d-flex flex-column gap-3">
+                                        <div
+                                            class="d-flex align-items-center p-2 rounded legend-item"
+                                            style="border-left-color:#dc3545;">
+                                            <div class="d-flex flex-column flex-grow-1 ms-2">
+                                                <span class="legend-label">Materiales (Stock)</span>
+                                                <span class="legend-amount">
+                                                    <t
+                                                        t-out="format_monetary(profitability['total_stock_moves'])" />
+                                                </span>
+                                            </div>
+                                            <span class="badge-legend badge-stock">
+                                                <t
+                                                    t-out="format_percentage(chart_data['stock_pct'])" />
+                                            </span>
+                                        </div>
+                                        <div
+                                            class="d-flex align-items-center p-2 rounded legend-item"
+                                            style="border-left-color:#0d6efd;">
+                                            <div class="d-flex flex-column flex-grow-1 ms-2">
+                                                <span class="legend-label">Compras Directas</span>
+                                                <span class="legend-amount">
+                                                    <t
+                                                        t-out="format_monetary(profitability['total_purchases'])" />
+                                                </span>
+                                            </div>
+                                            <span class="badge-legend badge-purchase">
+                                                <t
+                                                    t-out="format_percentage(chart_data['purchases_pct'])" />
+                                            </span>
+                                        </div>
+                                        <div
+                                            class="d-flex align-items-center p-2 rounded legend-item"
+                                            style="border-left-color:#fd7e14;">
+                                            <div class="d-flex flex-column flex-grow-1 ms-2">
+                                                <span class="legend-label">Mano de Obra (Horas)</span>
+                                                <span class="legend-amount">
+                                                    <t
+                                                        t-out="format_monetary(profitability['timesheet_cost'])" />
+                                                </span>
+                                            </div>
+                                            <span class="badge-legend badge-timesheet">
+                                                <t
+                                                    t-out="format_percentage(chart_data['timesheets_pct'])" />
+                                            </span>
+                                        </div>
+                                        <div
+                                            class="d-flex align-items-center p-2 rounded legend-item"
+                                            style="border-left-color:#6610f2;">
+                                            <div class="d-flex flex-column flex-grow-1 ms-2">
+                                                <span class="legend-label">Gastos (Reembolsos)</span>
+                                                <span class="legend-amount">
+                                                    <t
+                                                        t-out="format_monetary(profitability['total_expenses'])" />
+                                                </span>
+                                            </div>
+                                            <span class="badge-legend badge-expense">
+                                                <t
+                                                    t-out="format_percentage(chart_data['expenses_pct'])" />
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+
+                        <t t-if="wizard.chart_type == 'line'">
+                            <div class="line-chart-container mb-4 mt-4 text-center">
+                                <t t-out="line_chart_svg" />
+                            </div>
+                        </t>
+
+                        <t t-if="wizard.chart_type == 'waterfall'">
+                            <!-- wrapper: overflow visible para etiquetas, margen para labels -->
+                            <div class="column-chart-wrapper">
+                                <!-- container: height fija en px = CHART_H del Python (330px) -->
+                                <div class="column-chart-container"
+                                    t-att-style="'height:' + str(column_data[0]['chart_h'] if column_data else 330) + 'px;'">
+
+                                    <t t-if="column_data and column_data[0].get('zero_px', 0) > 0">
+                                        <div
+                                            style="position: absolute; width: 100%; border-top: 1px dashed #adb5bd; z-index: 0; left: 0; right: 0; pointer-events: none;"
+                                            t-att-style="'bottom:' + str(column_data[0]['zero_px']) + 'px;'"></div>
+                                    </t>
+
+                                    <t t-foreach="column_data" t-as="col">
+                                        <div class="column-group"
+                                            t-att-style="'height:' + str(col['chart_h']) + 'px;'">
+                                            <!-- bottom_px y height_px son píxeles absolutos: no
+                                            dependen
+                                                 del containing block ni del contexto flex -->
+                                            <div class="waterfall-bar-abs"
+                                                t-att-style="'bottom:' + str(col['bottom_px']) + 'px;height:' + str(col['height_px']) + 'px;background-color:' + col['color'] + ';'"
+                                                t-att-title="col['label'] + ': ' + format_monetary(col['amount'])">
+                                                <div class="column-value-float"
+                                                    t-att-style="'top:' + str(col['value_top_px']) + 'px;'">
+                                                    <t t-out="format_monetary(col['amount'])" />
+                                                </div>
+                                            </div>
+                                            <div class="column-label"
+                                                t-att-style="'top:' + str(col['chart_h'] + 8) + 'px;'">
+                                                <t t-esc="col['label']" />
+                                            </div>
+                                        </div>
+                                    </t>
+                                </div>
+                            </div>
+                        </t>
+
+
+                    </t>
+                    <t t-else="">
+                        <div class="text-center p-4 text-muted">
+                            <i class="fa fa-info-circle fa-2x mb-3" />
+                            <p>No hay costos registrados para visualizar el gráfico de distribución.</p>
+                        </div>
+                    </t>
+                </div>
+            </div>
+
+            <!-- DETALLE COMPRAS -->
+            <!-- Banner unificado: se muestra solo la primera vez, antes del primer detalle -->
+            <t
+                t-if="profitability['total_purchases'] > 0 or profitability['timesheet_cost'] > 0 or profitability['total_expenses'] > 0 or profitability['total_stock_moves'] > 0">
+                <t
+                    t-if="not purchases_list and not timesheets_list and not expenses_list and not stock_moves_list">
+                    <div
+                        class="alert alert-light border d-flex align-items-center justify-content-between mt-4 px-4 py-3 rounded-3" role="alert">
+                        <div>
+                            <i class="fa fa-table me-2 text-secondary" />
+                            <strong>Tablas de detalle no cargadas.</strong>
+                            <span class="text-muted ms-1">Se ocultan para mejorar el rendimiento.
+                                Ház clic para verlas.</span>
+                        </div>
+                        <button
+                            onclick="var _b=document.getElementById('btn_load_all_details'); if(_b) _b.click(); return false;"
+                            class="btn btn-sm btn-primary ms-3">
+                            <i class="fa fa-download me-1" /> Cargar todos los detalles </button>
+                    </div>
+                </t>
+            </t>
+
+            <div t-if="profitability['total_purchases'] > 0" class="kpi-card mt-4">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center"
+                    data-bs-toggle="collapse" data-bs-target="#collapsePurchases"
+                    aria-expanded="false" style="cursor:pointer;">
+                    <h6 class="m-0 fw-bold text-dark">
+                        <i class="fa fa-shopping-cart me-2 text-success" /> Detalle de Compras <span
+                            class="icon-tooltip"
+                            aria-label="Órdenes de Compra del proyecto ordenadas por fecha. Vinculadas por project_id o cuenta analítica. El monto suma solo las líneas relevantes al proyecto."
+                            style="margin-left:8px; display:inline-flex; align-items:center; cursor:help;">
+                            <i class="fa fa-question-circle"
+                                style="color:#adb5bd;font-size:15px;transition:color 0.2s;" />
+                        </span>
+                    </h6>
+                    <div class="d-flex align-items-center">
+                        <span class="fw-bold text-dark me-3">Total: <t
+                                t-out="format_monetary(profitability['total_purchases'])" /></span>
+                        <i class="fa fa-chevron-down text-muted" />
+                    </div>
+                </div>
+                <div id="collapsePurchases" class="collapse">
+                    <t t-if="not purchases_list">
+                        <div class="p-3 text-center text-muted">
+                            <i class="fa fa-spinner fa-spin me-1" /> Usa el botón “Cargar todos los
+                            detalles” para ver esta tabla. </div>
+                    </t>
+                    <t t-else="">
+                        <div class="table-responsive table-scroll-container">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="bg-light sticky-top" style="z-index:1;">
+                                    <tr>
+                                        <th class="ps-3">Pedido</th>
+                                        <th>Fecha</th>
+                                        <th>Proveedor</th>
+                                        <th>Proyecto</th>
+                                        <th>Tarea</th>
+                                        <th>Producto</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-end">Cant.</th>
+                                        <th class="text-end pe-3">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="purchases_list" t-as="po">
+                                        <td class="ps-3 fw-bold">
+                                            <a
+                                                t-att-href="'/web#id=' + str(po['order_id']) + '&amp;model=purchase.order&amp;view_type=form'"
+                                                target="_blank">
+                                                <t t-esc="po['order_name']" />
+                                            </a>
+                                        </td>
+                                        <td class="text-muted">
+                                            <span t-esc="po['date']" t-options='{"widget": "date"}' />
+                                        </td>
+                                        <td>
+                                            <t t-esc="po['partner']" />
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                <t t-esc="po['project_name']" />
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                <t t-esc="po['task_name']" />
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <t t-esc="po['product']" />
+                                        </td>
+                                        <td class="text-center">
+                                            <span
+                                                t-attf-class="badge rounded-pill #{'bg-success' if po['state_raw'] in ('purchase','done') else 'bg-secondary'}"
+                                                t-esc="po['state']" />
+                                        </td>
+                                        <td class="text-end">
+                                            <t t-esc="po['qty']" />
+                                        </td>
+                                        <td class="text-end pe-3 fw-bold">
+                                            <t t-out="format_monetary(po['total'])" />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </t>
+                </div>
+            </div>
+
+            <!-- DETALLE MANO DE OBRA -->
+            <div t-if="profitability['timesheet_cost'] > 0" class="kpi-card mt-4">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center"
+                    data-bs-toggle="collapse" data-bs-target="#collapseTimesheets"
+                    aria-expanded="false" style="cursor:pointer;">
+                    <h6 class="m-0 fw-bold text-dark">
+                        <i class="fa fa-clock-o me-2 text-warning" /> Detalle de Mano de Obra <span
+                            class="icon-tooltip"
+                            aria-label="Registros de tiempo (timesheets) del proyecto. Incluye empleado, tarea, fecha y costo calculado según la tasa horaria del empleado en Odoo."
+                            style="margin-left:8px; display:inline-flex; align-items:center; cursor:help;">
+                            <i class="fa fa-question-circle"
+                                style="color:#adb5bd;font-size:15px;transition:color 0.2s;" />
+                        </span>
+                    </h6>
+                    <div class="d-flex align-items-center">
+                        <span class="fw-bold text-dark me-3">Total: <t
+                                t-out="format_monetary(profitability['timesheet_cost'])" /></span>
+                        <i class="fa fa-chevron-down text-muted" />
+                    </div>
+                </div>
+                <div id="collapseTimesheets" class="collapse">
+                    <t t-if="not timesheets_list">
+                        <div class="p-3 text-center text-muted">
+                            <i class="fa fa-table me-1" /> Usa el botón “Cargar todos los detalles”
+                            para ver esta tabla. </div>
+                    </t>
+                    <t t-else="">
+                        <div class="table-responsive table-scroll-container">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="bg-light sticky-top" style="z-index:1;">
+                                    <tr>
+                                        <th class="ps-3">Descripción</th>
+                                        <th>Empleado</th>
+                                        <th>Proyecto</th>
+                                        <th>Tarea</th>
+                                        <th>Fecha</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-end pe-3">Costo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="timesheets_list" t-as="ts">
+                                        <td class="ps-3 fw-bold">
+                                            <t t-esc="ts['description']" />
+                                        </td>
+                                        <td>
+                                            <t t-esc="ts['employee']" />
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                <t t-esc="ts['project_name']" />
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <t t-esc="ts['task']" />
+                                        </td>
+                                        <td class="text-muted">
+                                            <span t-esc="ts['date']" t-options='{"widget": "date"}' />
+                                        </td>
+                                        <td class="text-center">
+                                            <span
+                                                t-attf-class="badge rounded-pill #{'bg-success' if ts['state_raw'] in ('approve','applied') else 'bg-warning'}"
+                                                t-esc="ts['state_label']" />
+                                        </td>
+                                        <td class="text-end pe-3 fw-bold">
+                                            <t t-out="format_monetary(ts['total'])" />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </t>
+                </div>
+            </div>
+
+            <!-- DETALLE GASTOS -->
+            <div t-if="profitability['total_expenses'] > 0" class="kpi-card mt-4">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center"
+                    data-bs-toggle="collapse" data-bs-target="#collapseExpenses"
+                    aria-expanded="false" style="cursor:pointer;">
+                    <h6 class="m-0 fw-bold text-dark">
+                        <i class="fa fa-money me-2 text-warning" /> Detalle de Gastos <span
+                            class="icon-tooltip"
+                            aria-label="Gastos de empleado aprobados o liquidados. Vinculados al proyecto por project_id en la tarea o por cuenta analítica. El monto usa el campo de importe sin impuesto disponible en la versión de Odoo."
+                            style="margin-left:8px; display:inline-flex; align-items:center; cursor:help;">
+                            <i class="fa fa-question-circle"
+                                style="color:#adb5bd;font-size:15px;transition:color 0.2s;" />
+                        </span>
+                    </h6>
+                    <div class="d-flex align-items-center">
+                        <span class="fw-bold text-dark me-3">Total: <t
+                                t-out="format_monetary(profitability['total_expenses'])" /></span>
+                        <i class="fa fa-chevron-down text-muted" />
+                    </div>
+                </div>
+                <div id="collapseExpenses" class="collapse">
+                    <t t-if="not expenses_list">
+                        <div class="p-3 text-center text-muted">
+                            <i class="fa fa-table me-1" /> Usa el botón “Cargar todos los detalles”
+                            para ver esta tabla. </div>
+                    </t>
+                    <t t-else="">
+                        <div class="table-responsive table-scroll-container">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="bg-light sticky-top" style="z-index:1;">
+                                    <tr>
+                                        <th class="ps-3">Descripción</th>
+                                        <th>Empleado</th>
+                                        <th>Proyecto</th>
+                                        <th>Tarea</th>
+                                        <th>Fecha</th>
+                                        <th>Informe</th>
+                                        <th class="text-center">Estado</th>
+                                        <th class="text-end pe-3">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="expenses_list" t-as="exp">
+                                        <td class="ps-3 fw-bold">
+                                            <t t-esc="exp['product']" />
+                                        </td>
+                                        <td>
+                                            <t t-esc="exp['employee']" />
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                <t t-esc="exp['project_name']" />
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                <t t-esc="exp['task_name']" />
+                                            </small>
+                                        </td>
+                                        <td class="text-muted">
+                                            <span t-esc="exp['date']" t-options='{"widget": "date"}' />
+                                        </td>
+                                        <td>
+                                            <t t-esc="exp['sheet_name']" />
+                                        </td>
+                                        <td class="text-center">
+                                            <span
+                                                t-attf-class="badge rounded-pill #{'bg-success' if exp['state_raw'] in ('done','post') else 'bg-warning'}"
+                                                t-esc="exp['state']" />
+                                        </td>
+                                        <td class="text-end pe-3 fw-bold">
+                                            <t t-out="format_monetary(exp['total'])" />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </t>
+                </div>
+            </div>
+
+            <!-- DETALLE STOCK -->
+            <div t-if="profitability['total_stock_moves'] > 0" class="kpi-card mt-4 mb-5">
+                <div class="p-3 border-bottom d-flex justify-content-between align-items-center"
+                    data-bs-toggle="collapse" data-bs-target="#collapseStock"
+                    aria-expanded="false" style="cursor:pointer;">
+                    <h6 class="m-0 fw-bold text-dark">
+                        <i class="fa fa-cubes me-2 text-primary" /> Detalle de Materiales
+                        Consolidados <span class="icon-tooltip"
+                            aria-label="Movimientos de almacén completados. Salidas suman como costo; devoluciones restan. El valor viene de stock.valuation.layer o del precio unitario del movimiento como respaldo."
+                            style="margin-left:8px; display:inline-flex; align-items:center; cursor:help;">
+                            <i class="fa fa-question-circle"
+                                style="color:#adb5bd;font-size:15px;transition:color 0.2s;" />
+                        </span>
+                    </h6>
+                    <div class="d-flex align-items-center">
+                        <span class="fw-bold text-dark me-3">Total: <t
+                                t-out="format_monetary(profitability['total_stock_moves'])" /></span>
+                        <i class="fa fa-chevron-down text-muted" />
+                    </div>
+                </div>
+                <div id="collapseStock" class="collapse">
+                    <t t-if="not stock_moves_list">
+                        <div class="p-3 text-center text-muted">
+                            <i class="fa fa-table me-1" /> Usa el botón “Cargar todos los detalles”
+                            para ver esta tabla. </div>
+                    </t>
+                    <t t-else="">
+                        <div class="table-responsive table-scroll-container"
+                            style="max-height:420px; overflow-y:auto;">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="bg-light sticky-top" style="z-index:2;">
+                                    <tr>
+                                        <th class="ps-3 text-center">Estado</th>
+                                        <th class="text-center d-none d-md-table-cell">Proyecto</th>
+                                        <th class="text-center">Tarea</th>
+                                        <th class="text-center d-none d-sm-table-cell">Fecha</th>
+                                        <th class="text-center">Referencia</th>
+                                        <th>Producto</th>
+                                        <th class="d-none d-lg-table-cell">Ubicaciones</th>
+                                        <th class="text-end d-none d-sm-table-cell">Cant.</th>
+                                        <th class="text-end d-none d-md-table-cell">Costo Unit.</th>
+                                        <th class="text-end pe-3">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="stock_moves_list" t-as="move">
+                                        <td class="text-center ps-3">
+                                            <span
+                                                t-attf-class="badge rounded-pill fw-bold #{'bg-success text-white' if move['state_raw'] == 'done' else 'bg-warning text-dark'}"
+                                                style="font-size:0.85rem;padding:6px 12px;box-shadow:0 2px 4px rgba(0,0,0,0.15);letter-spacing:0.5px;"
+                                                t-esc="move['state_label']" />
+                                        </td>
+                                        <td class="text-center text-muted d-none d-md-table-cell"
+                                            style="max-width:150px;">
+                                            <small t-esc="move['project_name']"
+                                                class="d-block text-truncate" />
+                                        </td>
+                                        <td class="text-center text-muted" style="max-width:180px;">
+                                            <span t-esc="move['task_name']"
+                                                t-att-title="move['task_name']"
+                                                class="badge bg-light text-dark border text-truncate"
+                                                style="max-width:100%;display:inline-block;vertical-align:bottom;" />
+                                        </td>
+                                        <td class="text-center text-muted d-none d-sm-table-cell">
+                                            <small t-esc="move['date']"
+                                                t-options='{"widget": "date"}' />
+                                        </td>
+                                        <td class="text-center">
+                                            <a t-att-href="move['picking_url']" target="_blank"
+                                                class="text-decoration-none fw-bold text-primary"
+                                                style="font-size:0.9rem;">
+                                                <t t-esc="move['picking']" />
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <span class="fw-bold text-dark"
+                                                t-esc="move['product_name']" />
+                                            <div t-if="move['lot_name'] != '-'"
+                                                class="small text-muted mt-1">
+                                                <i class="fa fa-barcode me-1" />
+                                                <t t-esc="move['lot_name']" />
+                                            </div>
+                                        </td>
+                                        <td class="d-none d-lg-table-cell">
+                                            <div class="d-flex flex-column small"
+                                                style="line-height:1.2;">
+                                                <div>
+                                                    <span class="text-muted me-1">De:</span>
+                                                    <span class="text-dark"
+                                                        t-esc="move['location_id']" />
+                                                </div>
+                                                <div>
+                                                    <span class="text-muted me-1">A:</span>
+                                                    <span class="text-dark"
+                                                        t-esc="move['location_dest_id']" />
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-end d-none d-sm-table-cell">
+                                            <span class="fw-bold" t-esc="move['quantity']" />
+                                            <small class="text-muted ms-1" t-esc="move['uom']" />
+                                        </td>
+                                        <td class="text-end text-muted d-none d-md-table-cell">
+                                            <small>
+                                                <t t-out="format_monetary(move['price_unit'])" />
+                                            </small>
+                                        </td>
+                                        <td class="text-end fw-bold text-danger pe-3">
+                                            <t t-out="format_monetary(move['total_cost'])" />
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </t>
+                </div>
+            </div>
+
+        </div>
+    </template>
+</odoo>

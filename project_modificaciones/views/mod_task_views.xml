@@ -1,0 +1,166 @@
+<odoo>
+
+    <record id="view_project_task_form_inherit_expenses_purchases_tabs" model="ir.ui.view">
+        <field name="name">project.task.form.inherit.expenses.purchases.tabs</field>
+        <field name="model">project.task</field>
+        <field name="inherit_id" ref="project.view_task_form2" />
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='tag_ids']" position="after">
+                <field name="expense_count" invisible="1" />
+                <field name="purchase_count" invisible="1" />
+                <field name="requisition_count" invisible="1" />
+                <field name="stock_move_count" invisible="1" />
+            </xpath>
+            <!-- Botones inteligentes movidos al wizard analytics.task_dashboard -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Gastos" invisible="expense_count == 0">
+                    <field name="expense_ids">
+                        <tree string="Expenses" multi_edit="1" js_class="hr_expense_tree"
+                            decoration-info="state == 'draft'" create="false">
+                            <field name="is_editable" column_invisible="True" />
+                            <field name="company_id" column_invisible="True" />
+                            <field name="company_currency_id" column_invisible="True" />
+                            <field name="nb_attachment" column_invisible="True" />
+                            <field name="is_multiple_currency" column_invisible="True" />
+                            <field name="product_has_cost" column_invisible="True" />
+                            <field name="date" optional="show" readonly="not is_editable" />
+                            <field name="product_id" optional="hide" readonly="not is_editable"
+                                required="1" />
+                            <field name="name" readonly="not is_editable" />
+                            <field name="employee_id" widget="many2one_avatar_user"
+                                readonly="not is_editable" />
+                            <field name="sheet_id" optional="show" readonly="True" />
+                            <field name="payment_mode" optional="show" readonly="not is_editable" />
+                            <field name="activity_ids" widget="list_activity" optional="show" />
+                            <field name="accounting_date" optional="hide"
+                                groups="account.group_account_invoice,account.group_account_readonly"
+                                readonly="not is_editable" />
+                            <field name="analytic_distribution" widget="analytic_distribution"
+                                optional="show"
+                                groups="analytic.group_analytic_accounting"
+                                readonly="not is_editable"
+                                options="{'product_field': 'product_id', 'business_domain': 'expense'}" />
+                            <field name="account_id" optional="hide"
+                                groups="account.group_account_readonly"
+                                readonly="not is_editable" />
+                            <field name="company_id" optional="show"
+                                groups="base.group_multi_company" readonly="True" />
+                            <field name="price_unit" string="Unit Price" optional="hide"
+                                widget="monetary"
+                                options="{'currency_field': 'company_currency_id', 'field_digits': True}"
+                                readonly="True" />
+                            <field name="quantity" optional="hide"
+                                readonly="not is_editable or not product_has_cost" />
+                            <field name="tax_ids" optional="hide" widget="many2many_tags"
+                                groups="account.group_account_invoice,account.group_account_readonly"
+                                readonly="not is_editable or not product_has_cost" />
+                            <field name="tax_amount" readonly="True"
+                                optional="hide"
+                                groups="account.group_account_invoice,account.group_account_readonly" />
+                            <field name="nb_attachment" widget="nb_attachment" nolabel="1"
+                                readonly="True" />
+                            <field name="total_amount" widget='monetary'
+                                readonly="not is_editable or product_has_cost"
+                                options="{'currency_field': 'company_currency_id'}"
+                                decoration-bf="1" />
+                            <field name="total_amount_currency" widget='monetary'
+                                readonly="not is_editable or not is_multiple_currency or product_has_cost"
+                                options="{'currency_field': 'currency_id'}" optional="hide"
+                                decoration-bf="1"
+                                groups="base.group_multi_currency" />
+                            <field name="currency_id" optional="hide"
+                                readonly="not is_editable or product_has_cost"
+                                groups="base.group_multi_currency" />
+                            <field name="state" optional="show" readonly="True"
+                                decoration-info="state in ['draft', 'reported']"
+                                decoration-success="state in ['approved', 'done']"
+                                decoration-warning="state == 'submitted'"
+                                decoration-danger="state == 'refused'" widget="badge" />
+
+                        </tree>
+                    </field>
+                    <group col="2">
+                        <label for="expense_total_approved" />
+                        <field name="expense_total_approved" nolabel="1" widget="monetary"
+                            options="{'currency_field': 'currency_id'}" />
+                    </group>
+                </page>
+                <page string="Compras" invisible="purchase_count == 0">
+                    <field name="purchase_line_ids" context="{'search_default_group_by_order': 0}">
+                        <tree
+                            decoration-muted="state == 'cancel'"
+                            string="Líneas de compra"
+                            create="false"
+                        >
+                            <field name="order_id" />
+                            <field name="product_id" />
+                            <field name="name" />
+                            <field name="date_planned" />
+                            <field name="product_qty" />
+                            <field name="product_uom" />
+                            <field name="price_unit" />
+                            <field name="price_subtotal" widget="monetary" />
+                            <field name="currency_id" column_invisible="True" />
+                            <field name="state" column_invisible="True" />
+
+                        </tree>
+                    </field>
+                    <group col="2">
+                        <label for="purchase_total_approved" />
+                        <field name="purchase_total_approved" nolabel="1" widget="monetary"
+                            options="{'currency_field': 'currency_id'}" />
+                    </group>
+                </page>
+                <page string="Requisiciones" invisible="requisition_count == 0">
+                    <field name="requisition_ids">
+                        <tree string="Requisiciones" create="false"
+                            decoration-success="state in ('approved','received')"
+                            decoration-warning="state == 'waiting_head_approval'"
+                            decoration-info="state in ('purchase_order_created','parc')"
+                            decoration-danger="state == 'cancelled'">
+                            <field name="name" />
+                            <field name="employee_id" widget="many2one_avatar_user" />
+                            <field name="dept_id" optional="show" />
+                            <field name="requisition_date" />
+                            <field name="requisition_deadline" optional="hide" />
+                            <field name="state" widget="badge"
+                                decoration-success="state in ('approved','received')"
+                                decoration-warning="state == 'waiting_head_approval'"
+                                decoration-info="state in ('purchase_order_created','parc')"
+                                decoration-danger="state =='cancelled'" />
+                            <field name="priority" optional="hide" widget="badge"
+                                decoration-info="priority == 'normal'"
+                                decoration-warning="priority == 'urgent'" />
+                        </tree>
+                    </field>
+                    <group col="2">
+                        <label for="requisition_count" string="Total Requisiciones" />
+                        <field name="requisition_count" nolabel="1" />
+                    </group>
+                </page>
+                <page string="Movimientos de Almacén" invisible="stock_move_count == 0">
+                    <field name="stock_move_ids">
+                        <tree string="Movimientos de Almacén" create="false"
+                            decoration-muted="state == 'cancel'">
+                            <field name="date" />
+                            <field name="reference" string="Referencia" />
+                            <field name="product_id" />
+                            <field name="quantity" string="Cantidad" />
+                            <field name="product_uom" options="{'no_open': True, 'no_create': True}"
+                                string="UoM" />
+                            <field name="location_id" string="Origen" />
+                            <field name="location_dest_id" string="Destino" />
+                            <field name="state" widget="badge" decoration-success="state == 'done'"
+                                decoration-info="state not in ('done', 'cancel')" />
+                        </tree>
+                    </field>
+                    <group col="2">
+                        <label for="stock_move_cost" string="Costo Neto Almacén" />
+                        <field name="stock_move_cost" nolabel="1" widget="monetary"
+                            options="{'currency_field': 'currency_id'}" />
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>

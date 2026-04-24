@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <report
+        id="action_report_license"
+        string="License Report"
+        model="license.license"
+        report_type="qweb-pdf"
+        name="project_modificaciones.report_license"
+        file="project_modificaciones.report_license"
+    />
+</odoo>

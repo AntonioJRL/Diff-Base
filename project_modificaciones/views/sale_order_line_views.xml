@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="saler_order_line_form_inherit" model="ir.ui.view">
+        <field name="name">sale.order.line.inherit</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form" />
+        <field name="arch" type="xml">
+
+            <!--Agrega un campo proyecto que nos permite redireccionar la tarea a un proyecto en especifico -->
+            <xpath expr="//field[@name='order_line']//tree//field[@name='product_template_id']"
+                position="after">
+                <field name="order_partner_id" invisible="0" />
+                <field name="project_line_id" string="Proyecto" optional="show" column_invisible="parent.state not in 'sale'"/>
+            </xpath>
+
+            <!--Agrega un campo partida para mostrar que partida pertenece la linea de orden de venta-->
+            <xpath expr="//field[@name='order_line']//tree//field[@name='sequence']"
+                position="after">
+                <field name="position" string="Partida" width="80" optional="show" readonly="1"/>
+            </xpath>
+
+            <!--Dominio Ayuda A Filtrar los Productos En Base Al Cliente (Mostrara Solo los productos del cliente seleccionado y los productos que no tienen cliente)-->
+            <xpath expr="//field[@name='order_line']//tree//field[@name='product_template_id']"
+                position="attributes">
+                <attribute name="domain">
+                    ['|', ('cliente_id', '=', parent.partner_id), ('cliente_id', '=', False),
+                    ('sale_ok', '=', True)]
+                </attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='order_line']//tree//field[@name='product_template_id']"
+                position="attributes">
+                <attribute name="context">
+                    {'default_type': 'service',
+                    'default_sale_ok': True,
+                    'default_service_tracking': 'task_global_project',
+                    'default_purchase_ok': False,
+                    'default_service_policy': 'delivered_manual',
+                    }
+                </attribute>
+            </xpath>
+
+            <!--Campos
+            que se vuelván ocultos-->
+            <xpath expr="//field[@name='order_line']/tree/field[@name='analytic_distribution']"
+                position="attributes">
+                <attribute name="optional">show</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='order_line']/tree/field[@name='order_partner_id']"
+                position="attributes">
+                <attribute name="optional">hide</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='order_line']/tree/field[@name='tax_id']"
+                position="attributes">
+                <attribute name="optional">hide</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='order_line']/tree/field[@name='product_packaging_qty']"
+                position="attributes">
+                <attribute name="optional">hide</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='order_line']/tree/field[@name='product_packaging_id']"
+                position="attributes">
+                <attribute name="optional">hide</attribute>
+            </xpath>
+
+            <!-- Insertar el campo en la vista list de las líneas -->
+            <xpath expr="//field[@name='order_line']/tree/field[@name='product_uom_qty']"
+                position="after">
+                <field name="task_id" width="250" optional="hide" />
+            </xpath>
+
+            <!-- Insertar también el campo en la vista formulario de las líneas -->
+            <xpath expr="//field[@name='order_line']/form//field[@name='product_id']"
+                position="after">
+                <field name="task_id" optional="hide" />
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

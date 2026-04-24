@@ -1,0 +1,300 @@
+/* Estándar moderno (y Firefox 19+) */
+.control_de_obra_view input::placeholder {
+    color: #d15050;
+}
+
+/* Para ajustar el texto en todas las celdas de texto en una vista de lista */
+.o_list_view .o_list_table .o_data_row td.o_list_char {
+    white-space: normal !important;
+}
+
+/* Se mantienen todas las variables originales dentro del scope del dashboard */
+.dashboard-container {
+    --primary-color: #8c3e38;
+    --card-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    --badge-compras: #CF9BF2;
+    --badge-gastos: #88B6F7;
+    --badge-lines: #58D558;
+    --badge-avance: #FFB617;
+    --badge-span: #BABABA;
+    --header-font-size: 1.1rem;
+    --header-font-weight: 600;
+    --header-padding: 1rem 1.5rem;
+    --border-radius: 0.25rem;
+    
+    background-color: #FFFFFF;
+    padding: 2rem;
+}
+
+.dashboard-container .badge-negro {
+    color: #000000 !important;
+}
+
+/* Aplicación de estilos originales limitados al contenedor */
+.dashboard-container .card {
+    margin-bottom: 1.5rem;
+    border: none;
+    box-shadow: var(--card-shadow);
+    border-radius: var(--border-radius);
+    height: calc(100% - 1.5rem);
+    overflow: hidden;
+}
+
+.dashboard-container .card-clickable {
+    display: block;
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: left;
+    cursor: pointer;
+}
+
+.dashboard-container .card.animacion {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dashboard-container .card.animacion:hover {
+    transform: scale(1.05);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+    z-index: 10;
+    position: relative;
+}
+
+.dashboard-container .card-header {
+    background-color: var(--primary-color) !important;
+    border-bottom: none;
+    color: #FFFFFF !important;
+    font-weight: var(--header-font-weight);
+    padding: var(--header-padding);
+    font-size: var(--header-font-size);
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+}
+
+.dashboard-container .card-header .card-title {
+    margin: 0;
+    font-size: var(--header-font-size);
+    font-weight: var(--header-font-weight);
+    color: #FFFFFF !important;
+    display: flex;
+    align-items: center;
+}
+
+.dashboard-container .card-title.h4 {
+    margin: auto 0 auto 0;
+    font-size: 1.50rem;
+    font-weight: var(--header-font-weight);
+    color: #000000 !important;
+    display: flex;
+    align-items: center;
+}
+
+.dashboard-container .fechas {
+    margin: auto 0 auto 0;
+    font-size: 1rem;
+    font-weight: 400;
+    color: #000000 !important;
+}
+
+.dashboard-container .valores {
+    margin: auto 0 auto 0;
+    font-size: 1rem;
+    font-weight: 400;
+    border-radius: var(--border-radius);
+    color: #000000 !important;
+}
+
+.dashboard-container .valores-metricas {
+    font-size: 1.50rem;
+    font-weight: 600;
+}
+
+.dashboard-container .kpi-header {
+    background-color: var(--primary-color) !important;
+    color: #FFFFFF !important;
+    font-weight: var(--header-font-weight);
+    padding: var(--header-padding);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-top-left-radius: var(--border-radius);
+    border-top-right-radius: var(--border-radius);
+    font-size: var(--header-font-size);
+}
+
+.dashboard-container .kpi-header h6 {
+    margin: 0;
+    font-size: var(--header-font-size);
+    font-weight: var(--header-font-weight);
+    color: #FFFFFF !important;
+}
+
+.dashboard-container .card-body {
+    padding: 1rem 1.5rem 1.5rem;
+}
+
+.dashboard-container .card-body p, 
+.dashboard-container .card-body span, 
+.dashboard-container .card-body small {
+    font-size: var(--header-font-size);
+}
+
+.dashboard-container .kpi-value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-container .text-green {
+    color: green !important;
+}
+
+.dashboard-container .table badge {
+    font-size: 0.75rem;
+}
+
+.dashboard-container .badge-compras {
+    background-color: var(--badge-compras);
+    color: black !important;
+    font-size: var(--header-font-size);
+    border-radius: var(--border-radius);
+}
+
+.dashboard-container .badge-gastos {
+    background-color: var(--badge-gastos);
+    color: black !important;
+    font-size: var(--header-font-size);
+    border-radius: var(--border-radius);
+}
+
+.dashboard-container .badge-lines {
+    background-color: var(--badge-lines);
+    font-size: var(--header-font-size);
+    color: black !important;
+    border-radius: var(--border-radius);
+}
+
+.dashboard-container .badge-avance {
+    background-color: var(--badge-avance);
+    color: black !important;
+    font-size: var(--header-font-size);
+    border-radius: var(--border-radius);
+}
+
+.dashboard-container .span-bg {
+    background: var(--badge-span);
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    color: black !important;
+    font-weight: bold;
+    padding: 0.2rem 0.5rem;
+    display: inline-block;
+    max-width: 100%;
+    white-space: nowrap;
+}
+
+.dashboard-container .progreso {
+    border-radius: var(--border-radius);
+    font-size: 1rem;
+    font-weight: bold;
+    color: black !important;
+}
+
+.dashboard-container .table th {
+    border-top: none;
+    font-size: 1.15rem;
+    color: #000000 !important;
+    vertical-align: middle;
+}
+
+.dashboard-container .table td {
+    font-size: 1rem;
+    color: #000000;
+}
+
+.dashboard-container .progress {
+    position: relative;
+    height: 1.5rem;
+    background: #e9ecef;
+    margin-bottom: 0;
+    border-radius: 1.25rem;
+    overflow: hidden;
+}
+
+.dashboard-container .progress-bar {
+    height: 100%;
+    transition: width 0.3s ease;
+    background-color: #4caf50;
+    position: relative;
+}
+
+.dashboard-container .progress-text,
+.dashboard-container .progress-bar-text {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    line-height: 1.5rem;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #000000 !important;
+    z-index: 5;
+    text-shadow: 0 0 2px white;
+}
+
+.dashboard-container .h6 {
+    font-size: 1.25rem;
+    color: #000000 !important;
+}
+
+/* Secciones de visibilidad de barra de progreso */
+.dashboard-container .progress-bar[style*="width: 0%"] ~ .progress-bar-text,
+.dashboard-container .progress-bar[style*="width: 1%"] ~ .progress-bar-text,
+.dashboard-container .progress-bar[style*="width: 2%"] ~ .progress-bar-text,
+.dashboard-container .progress-bar[style*="width: 3%"] ~ .progress-bar-text,
+.dashboard-container .progress-bar[style*="width: 4%"] ~ .progress-bar-text,
+.dashboard-container .progress-bar[style*="width: 5%"] ~ .progress-bar-text,
+.dashboard-container .progress-bar[style*="width: 6%"] ~ .progress-bar-text,
+.dashboard-container .progress-bar[style*="width: 7%"] ~ .progress-bar-text,
+.dashboard-container .progress-bar[style*="width: 8%"] ~ .progress-bar-text,
+.dashboard-container .progress-bar[style*="width: 9%"] ~ .progress-bar-text,
+.dashboard-container .progress-bar[style*="width: 10%"] ~ .progress-bar-text {
+    color: #000;
+    text-align: left;
+    padding-left: 5px;
+}
+
+.dashboard-container .scroll-box {
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+.dashboard-container .scroll-box::-webkit-scrollbar {
+    width: 8px;
+}
+
+.dashboard-container .scroll-box::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.dashboard-container .scroll-box::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 10px;
+}
+
+.dashboard-container .scroll-box::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.dashboard-container .tamaño-producto {
+    width: 300px;
+    overflow-wrap: break-word;
+    white-space: normal;
+}
+
+.dashboard-container .tamaño-descripcion {
+    width: 350px;
+    overflow-wrap: break-word;
+    white-space: normal;
+}

@@ -1,0 +1,21 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_project_sub_update_project_user,project.sub.update.project.user,model_project_sub_update,project.group_project_user,1,1,1,0
+access_project_supervisor_area_project_user,project.supervisor.area.project.user,model_supervisor_area,project.group_project_user,1,1,1,0
+access_project_sub_update_project_manager,project.sub.update.project.manager,model_project_sub_update,project.group_project_manager,1,1,1,0
+access_license_generator,access_license_generator,model_license_generator,,1,1,1,1
+access_license_disciplina,access_license_disciplina,model_license_disciplina,,1,1,1,1
+access_sale_order_origen,sale.order.origen,model_sale_order_origen,base.group_user,1,1,1,1
+access_sale_order_destino,sale.order.destino,model_sale_order_destino,base.group_user,1,1,1,1
+access_sale_order_incidencia,sale.order.incidencia,model_sale_order_incidencia,base.group_user,1,1,1,1
+access_control_centro_trabajo,Control Centro Trabajo,model_control_centro_trabajo,,1,1,1,1
+access_control_planta,Control Planta,model_control_planta,,1,1,1,1
+access_wizard_rechazado_task,Mensaje Rechazado,model_wizard_rechazado_task,,1,1,1,1
+access_project_task_type,Tipo de Tarea,model_project_task_type,,1,1,1,1
+access_dashboard_sale_order,Dashboard Sale Order,model_dashboard_sale_order,base.group_user,1,1,1,1
+access_asignar_avances_project_wizard,Asignar Avances Project Wizard,model_asignar_avances_project_wizard,project.group_project_user,1,1,1,1
+access_task_update,access_task_update,model_task_update,base.group_user,1,1,1,1
+access_pending_service_wizard,Pending Service Wizard,model_pending_service_wizard,project.group_project_user,1,1,1,1
+access_pending_service_wizard_line,Pending Service Wizard Line,model_pending_service_wizard_line,project.group_project_user,1,1,1,1
+access_project_sub_update_reclassify_wizard,Project Sub Update Reclassify Wizard,model_project_sub_update_reclassify_wizard,project.group_project_user,1,1,1,1
+access_project_reclassify_wizard,Project Reclassify Wizard,model_project_reclassify_wizard,project.group_project_user,1,1,1,1
+access_project_profitability_report,Project Profitability Report,model_project_profitability_report,project.group_project_user,1,1,1,1

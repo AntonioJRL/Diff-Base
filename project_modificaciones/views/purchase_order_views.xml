@@ -1,0 +1,35 @@
+<odoo>
+    <!-- Añadir campo tarea en el árbol de líneas de compra -->
+    <record id="view_purchase_order_form_inherit_task_in_line" model="ir.ui.view">
+        <field name="name">purchase.order.form.inherit.task.in.line</field>
+        <field name="model">purchase.order</field>
+        <field name="inherit_id" ref="purchase.purchase_order_form" />
+        <field name="arch" type="xml">
+            <!-- Agregar contexto para valores por defecto en nuevas líneas -->
+            <xpath expr="//field[@name='order_line']" position="attributes">
+                <attribute name="context">{'default_project_id': project_id, 'default_task_id':
+                    task_order_id}</attribute>
+            </xpath>
+
+            <!-- Mostrar Tarea después del producto en la lista de líneas -->
+            <xpath expr="//field[@name='order_line']/*[self::tree]/field[@name='name']"
+                position="after">
+                <field name="display_type" column_invisible="1" />
+                <field name="project_id" required="not display_type"/>
+                <field name="task_id" string="Tarea" optional="show"  required="not display_type"/>
+            </xpath>
+            <!-- Agregar Tarea en el formulario de línea (después de product_id) -->
+            <xpath expr="//field[@name='tax_calculation_rounding_method']"
+                position="after">
+                <label for="project_id" />
+                <div name="proy" class="d-flex">
+                    <field name="project_id"
+                        options="{'no_create': True, 'no_edit': True}" />
+                    <span class="oe_inline o_form_label mx-3">Tarea:</span>
+                    <field name="task_order_id"
+                        options="{'no_create': True, 'no_edit': True}" />
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

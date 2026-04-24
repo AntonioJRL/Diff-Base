@@ -1,0 +1,10 @@
+<odoo>
+    <data>
+        <record id="aprobacion_mail_activity" model="mail.activity.type">
+            <field name="name">Solicitud de Aprobación</field>
+            <field name="icon">fa-check-square-o</field> <field name="res_model">project.task</field>
+            <field name="delay_count">0</field>
+            <field name="decoration_type">warning</field>
+        </record>
+    </data>
+</odoo>

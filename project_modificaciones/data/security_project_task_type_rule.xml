@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Regla de lectura global para todas las etapas de Control de Obra -->
+    <record id="project_task_type_global_read_control_obra" model="ir.rule">
+        <field name="name">Project/Task Type: Read Control Obra</field>
+        <field name="model_id" ref="project.model_project_task_type"/>
+        <field name="global" eval="False"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+        <field name="domain_force">[('is_control_obra_stage','=',True)]</field>
+    </record>
+</odoo>

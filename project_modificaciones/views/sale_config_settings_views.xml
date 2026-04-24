@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Vistas para Orígenes -->
+    <record id="view_sale_origen_tree" model="ir.ui.view">
+        <field name="name">sale.order.origen.tree</field>
+        <field name="model">sale.order.origen</field>
+        <field name="arch" type="xml">
+            <tree string="Orígenes" decoration-muted="active == False">
+                <field name="name" string="Nombre"/>
+                <field name="color" widget="color_picker"/>
+                <field name="active" string="Activo"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_sale_origen_form" model="ir.ui.view">
+        <field name="name">sale.order.origen.form</field>
+        <field name="model">sale.order.origen</field>
+        <field name="arch" type="xml">
+            <form string="Origen">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name" string="Nombre"/>
+                        </group>
+                        <group>
+                            <field name="color" widget="color_picker"/>
+                            <field name="active" string="Activo"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Vistas para Destinos -->
+    <record id="view_sale_destino_tree" model="ir.ui.view">
+        <field name="name">sale.order.destino.tree</field>
+        <field name="model">sale.order.destino</field>
+        <field name="arch" type="xml">
+            <tree string="Destinos" decoration-muted="active == False">
+                <field name="name" string="Nombre"/>
+                <field name="color" widget="color_picker"/>
+                <field name="active" string="Activo"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_sale_destino_form" model="ir.ui.view">
+        <field name="name">sale.order.destino.form</field>
+        <field name="model">sale.order.destino</field>
+        <field name="arch" type="xml">
+            <form string="Destino">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name" string="Nombre"/>
+                        </group>
+                        <group>
+                            <field name="color" widget="color_picker"/>
+                            <field name="active" string="Activo"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Vistas para Incidencias -->
+    <record id="view_sale_incidencia_tree" model="ir.ui.view">
+        <field name="name">sale.order.incidencia.tree</field>
+        <field name="model">sale.order.incidencia</field>
+        <field name="arch" type="xml">
+            <tree string="Incidencias" decoration-muted="active == False">
+                <field name="name" string="Nombre"/>
+                <field name="color" widget="color_picker"/>
+                <field name="active" string="Activo"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_sale_incidencia_form" model="ir.ui.view">
+        <field name="name">sale.order.incidencia.form</field>
+        <field name="model">sale.order.incidencia</field>
+        <field name="arch" type="xml">
+            <form string="Incidencia">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name" string="Nombre"/>
+                        </group>
+                        <group>
+                            <field name="color" widget="color_picker"/>
+                            <field name="active" string="Activo"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+
+    <!-- Acciones y submenús -->
+    <record id="action_sale_origen" model="ir.actions.act_window">
+        <field name="name">Orígenes</field>
+        <field name="res_model">sale.order.origen</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configurar los orígenes para órdenes de venta
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_sale_config_origen" 
+              name="Orígenes" 
+              parent="sale.menu_sales_config" 
+              action="action_sale_origen" 
+              sequence="10"
+              groups="base.group_user"/>
+
+    <record id="action_sale_destino" model="ir.actions.act_window">
+        <field name="name">Destinos</field>
+        <field name="res_model">sale.order.destino</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configurar los destinos para órdenes de venta
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_sale_config_destino" 
+              name="Destinos" 
+              parent="sale.menu_sales_config" 
+              action="action_sale_destino" 
+              sequence="20"
+              groups="base.group_user"/>
+
+    <record id="action_sale_incidencia" model="ir.actions.act_window">
+        <field name="name">Incidencias</field>
+        <field name="res_model">sale.order.incidencia</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Configurar las incidencias para órdenes de venta
+            </p>
+        </field>
+    </record>
+
+    <menuitem id="menu_sale_config_incidencia" 
+              name="Incidencias" 
+              parent="sale.menu_sales_config" 
+              action="action_sale_incidencia" 
+              sequence="30"
+              groups="base.group_user"/>
+</odoo>

@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_avances_a_confirmar_list" model="ir.ui.view">
+        <field name="name">avances.a.confirmar.list</field>
+        <field name="model">project.sub.update</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <tree create="false" delete="false">
+                <field name="display_name" string="Avance" width="150px" />
+                <field name="producto" width="180px" />
+                <field name="ct" width="50px" />
+                <field name="planta" width="50px" />
+                <field name="supervisorplanta" string="Sup. Cliente" widget="many2one_avatar_user"
+                    width="120px" />
+                <field name="responsible_id" string="Sup. Interno" widget="many2one_avatar_user"
+                    width="120px" />
+                <field name="unit_progress" string="Avance/U" digits="[12, 6]" width="100px" />
+                <field name="costo_avance_formateado" string="Costo" width="100px" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_creacion_avances_wizard" model="ir.ui.view">
+        <field name="name">asignar.avances.project.wizard.form</field>
+        <field name="model">asignar.avances.project.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Asignar Avances">
+                <field name="state" invisible="1" />
+                <field name="available_product_ids" invisible="1" />
+                <div invisible="state != 'selection'">
+                    <p class="oe_grey">
+                        Paso 1 de 2: Seleccione el Pedido de Venta y los trabajos que desea asignar
+                        a esta actualización
+                        del proyecto.
+                    </p>
+                    <group>
+                        <field name="project_id" readonly="1" force_save="1" />
+                        <field name="allowed_partner_ids" invisible="1" />
+                        <field name="project_partner_id" placeholder="Seleccione un Cliente"
+                            options="{'no_create': True, 'no_create_edit': True}" />
+                        <field name="update_id" readonly="1" />
+                        <field name="available_sale_order_ids"
+                            domain="[('id', 'in', available_sale_order_ids)]" invisible="1" />
+                        <field name="sale_order_id"
+                            options="{'no_create': True, 'no_create_edit': True}" />
+                        <field name="sub_update_id"
+                            widget="many2many_tags"
+                            options="{'no_create': True, 'no_create_edit': True}"
+                            placeholder="Seleccione los Trabajos"
+                            invisible="not sale_order_id"
+                            domain="[('avances_state', '=', 'confirmed'), ('producto', 'in', available_product_ids)]"
+                            context="{'name_field': 'display_name'}" />
+                    </group>
+                </div>
+                <div invisible="state != 'confirmation'">
+                    <p class="oe_grey">
+                        Paso 2 de 2: Revise la lista de trabajos que se asignarán. Haga clic en
+                        'Confirmar Asignación'
+                        para finalizar el proceso.
+                    </p>
+                    <field name="avances_a_confirmar_ids"
+                        nolabel="1"
+                        context="{'list_view_ref': 'project_modificaciones.view_avances_a_confirmar_list'}" />
+                </div>
+                <footer>
+                    <button string="Preparar Asignación" type="object"
+                        name="action_prepare_assignment"
+                        class="btn-primary"
+                        invisible="state != 'selection'" data-hotkey="q" />
+                    <button string="Confirmar Asignación" type="object"
+                        name="action_confirm_assignment"
+                        class="btn-primary"
+                        invisible="state != 'confirmation'" data-hotkey="q" />
+                    <button string="Volver a Selección" type="object"
+                        name="action_back_to_selection"
+                        class="btn-secondary"
+                        invisible="state != 'confirmation'" data-hotkey="w" />
+                    <button string="Cancelar" class="btn-secondary" special="cancel" data-hotkey="z" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_update_sub_updates_wizard" model="ir.actions.act_window">
+        <field name="name">Seleccionar Trabajos</field>
+        <field name="res_model">asignar.avances.project.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

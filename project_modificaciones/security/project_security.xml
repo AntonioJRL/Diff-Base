@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record model="res.groups" id="group_botones_avance">
+            <field name="name">Grupo Botones Avance</field>
+            <field name="category_id" ref="project_modificaciones.module_category_control_obra" />
+            <field name="users" eval="[(4, ref('base.user_admin'))]" />
+            <field name="comment">Este grupo permite la visibilidad y permiso de los botones para confirmar el avance o asignar el avance a un orden de venta.</field>
+        </record>
+
+        <record model="res.groups" id="group_boton_borrador_avance">
+            <field name="name">Boton Borrador Avance</field>
+            <field name="category_id" ref="project_modificaciones.module_category_control_obra" />
+            <field name="users" eval="[(4, ref('base.user_admin'))]" />
+            <field name="comment">Este grupo permite la visibilidad y permiso del boton regresar a borrador el avance.</field>
+        </record>
+        <!--
+        <record id="group_vistas_control" model="res.groups">
+            <field name="name">Usuario Control (Vistas)</field>
+            <field name="category_id" ref="project_modificaciones.module_category_control_obra" />
+            <field name="users" eval="[(4, ref('base.user_admin'))]" />
+        </record>
+        -->
+        <record id="permiso_global_aprobar_tarea" model="res.groups">
+            <field name="name">Aprobador Global</field>
+            <field name="category_id" ref="project_modificaciones.module_category_control_obra" />
+            <field name="comment">Este grupo permite al usuario poder aprobar una actividad aunque no sea el aprobador asignado.</field>
+            <field name="users" eval="[(4, ref('base.user_admin'))]" />
+        </record>
+    </data>
+</odoo>

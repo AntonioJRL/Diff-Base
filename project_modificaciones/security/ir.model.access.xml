@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <data noupdate="0">
+
+        <!-- Categoría para Control de obra -->
+        <record model="ir.module.category" id="module_category_control_obra">
+            <field name="name">Control de obra</field>
+            <field name="description">Permisos asociados a control de obra</field>
+            <field name="sequence">10</field>
+        </record>
+
+        <record id="access_project_sharing_task_portal" model="ir.model.access">
+            <field name="name">project_sharing_task_portal</field>
+            <field name="model_id" ref="model_project_task"/>
+            <field name="group_id" ref="base.group_portal"/>
+            <field name="active">0</field>
+            <field name="perm_read">0</field>
+            <field name="perm_write">1</field>
+            <field name="perm_create">1</field>
+            <field name="perm_unlink">0</field>
+        </record>
+
+        <!-- Grupo para crear registros -->
+        <record id="group_license_create" model="res.groups">
+            <field name="name">Crear Licencias</field>
+            <field name="category_id" ref="project_modificaciones.module_category_control_obra"/>
+            <field name="model_access" eval="[(0,0,{
+                'name': 'Crear Licencias',
+                'model_id': ref('model_license_license'),
+                'perm_read': 1,
+                'perm_write': 1,
+                'perm_create': 1,
+                'perm_unlink': 0
+            })]"/>
+            <field name="comment">Permite al usuario poder crear licencias.</field>
+        </record>
+        
+        <record id="group_sub_update_mark_invoiced" model="res.groups">
+            <field name="name">Marcar Avances como Facturados/No Facturados</field>
+            <field name="category_id" ref="project_modificaciones.module_category_control_obra"/>
+            <field name="model_access" eval="[(0,0,{
+                'name': 'Marcar Avances como Facturados/No Facturados',
+                'model_id': ref('model_project_sub_update'),
+                'perm_read': 1,
+                'perm_write': 1,
+                'perm_create': 1,
+                'perm_unlink': 0
+            })]"/>
+            <field name="comment">Permite la visibilidad de los botones cuya accion son marcar como facturado o no facturado los avances. </field>
+        </record>
+
+        <record id="group_sub_update_delete" model="res.groups">
+            <field name="name">Eliminar avances</field>
+            <field name="category_id" ref="project_modificaciones.module_category_control_obra"/>
+            <field name="model_access" eval="[(0,0,{
+                'name': 'Eliminar avances',
+                'model_id': ref('model_project_sub_update'),
+                'perm_read': 1,
+                'perm_write': 1,
+                'perm_create': 1,
+                'perm_unlink': 1
+            })]"/>
+            <field name="comment">Permite al usuario poder tener la opción para eliminar avances.</field>
+        </record>
+
+        
+        <record id="group_pending_service" model="ir.model.access">
+            <field name="name">group_pending_service</field>
+            <field name="model_id" ref="model_pending_service"/>
+            <field name="group_id" ref="group_license_create"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+
+
+        <record id="access_pending_service_line" model="ir.model.access">
+            <field name="name">access_pending_service_line</field>
+            <field name="model_id" ref="model_pending_service_line"/>
+            <field name="group_id" ref="group_license_create"/>
+            <field name="perm_read" eval="1"/>
+            <field name="perm_write" eval="1"/>
+            <field name="perm_create" eval="1"/>
+            <field name="perm_unlink" eval="1"/>
+        </record>
+    
+
+
+        <!-- Grupo para eliminar registros -->
+        <record id="group_license_delete" model="res.groups">
+            <field name="name">Eliminar Licencias</field>
+            <field name="category_id" ref="project_modificaciones.module_category_control_obra"/>
+            <field name="model_access" eval="[(0,0,{
+                'name': 'Eliminar Licencias',
+                'model_id': ref('model_license_license'),
+                'perm_read': 1,
+                'perm_write': 1,
+                'perm_create': 1,
+                'perm_unlink': 1
+            })]"/>
+            <field name="comment">Permite al usuario poder eliminar licencias. </field>
+        </record>
+    </data>
+</odoo>

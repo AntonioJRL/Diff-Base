@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record model="ir.ui.menu" id="project.menu_projects">
+        <field name="active" eval="False" />
+    </record>
+
+    <menuitem
+        name="Especialidades"
+        id="project_tags2"
+        action="project_tags_action"
+        parent="project.menu_main_pm"
+        sequence="1"
+    />
+
+    <!-- CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA CONTROL DE OBRA -->
+    <menuitem 
+        id="menu_control_obra_root"
+        name="Control de Obra"
+        sequence="10"
+        web_icon="project_modificaciones,static/description/icon.png">
+
+    </menuitem>
+
+    <menuitem
+        name="Proyectos"
+        id="menu_proyectos_control_obra"
+        parent="menu_control_obra_root"
+        sequence="1"
+    />
+
+    <menuitem
+        name="Proyectos"
+        id="menu_proyectos"
+        action="open_projects"
+        parent="menu_proyectos_control_obra"
+        sequence="1"
+    />
+
+    <menuitem
+        name="Tareas"
+        id="menu_tareas_control_obra"
+        action="open_task"
+        parent="menu_control_obra_root"
+        sequence="2"
+    />
+
+    <menuitem
+        name="Ventas"
+        id="menu_ventas_control_obra"
+        parent="menu_control_obra_root"
+        sequence="3"
+    />
+
+
+    <menuitem
+        id="menu_sales_orders_custom"
+        name="Órdenes de Venta"
+        parent="menu_ventas_control_obra"
+        action="action_control_obra_sales_orders"
+        sequence="1" 
+    />
+
+    <menuitem
+        id="menu_sales_quotations_custom"
+        name="Cotizaciones"
+        parent="menu_ventas_control_obra"
+        action="action_control_obra_quotations"
+        sequence="2" 
+    />
+
+    <menuitem
+        id="menu_productos_custom"
+        name="Productos"
+        parent="menu_ventas_control_obra"
+        action="action_control_obra_products"
+        sequence="3" 
+    />
+
+    <menuitem
+        name="Control"
+        id="menu_control_obra"
+        parent="menu_control_obra_root"
+        sequence="4"
+    />
+
+    <menuitem
+        name="Centros de Trabajo"
+        id="menu_centro_trabajo_obra"
+        action="action_control_centro_trabajo"
+        parent="menu_control_obra"
+        sequence="1"
+    />
+
+    <menuitem
+        name="Plantas de Trabajo"
+        id="menu_control_planta_obra"
+        action="action_control_planta"
+        parent="menu_control_obra"
+        sequence="2"
+    />
+
+    <!-- Submenú "Supervisores" bajo "Control" -->
+    <menuitem
+        name="Supervisores"
+        id="menu_supervisor_area"
+        action="action_supervisor_area"
+        parent="menu_control_obra"
+        sequence="3"
+    />
+
+    <!-- Submenú "Licencias" bajo "Control" -->
+    <menuitem
+        name="Licencias"
+        id="menu_license_license"
+        action="action_license_license"
+        parent="menu_control_obra"
+        sequence="4"
+        groups="project_modificaciones.group_license_create"
+    />
+
+    <menuitem
+        id="menu_pending_service"
+        name="Servicios Pendientes"
+        parent="menu_control_obra"
+        action="action_pending_service"
+        sequence="5"
+        groups="project_modificaciones.group_license_create"
+    />
+
+    <!-- Menú para Disciplinas -->
+    <menuitem
+        id="menu_disciplina"
+        name="Disciplinas"
+        parent="menu_control_obra"
+        action="action_disciplina"
+        sequence="6"
+    />
+
+    <menuitem
+        name="Avances"
+        id="menu_avances_control_obra"
+        parent="menu_control_obra_root"
+        action="project_sub_update_action"
+        sequence="5"
+    />
+
+    <!-- Inicio de Menú Reportes -->
+    <menuitem
+        name="Dashboard de Proyectos"
+        id="menu_project_profitability_report"
+        parent="menu_proyectos_control_obra"
+        action="action_project_profitability_report"
+        sequence="2"
+    />
+
+</odoo>

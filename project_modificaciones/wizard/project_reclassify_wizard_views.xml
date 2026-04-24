@@ -1,0 +1,296 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- VISTA FORM DEL WIZARD CON MERGE -->
+    <record id="view_project_reclassify_wizard_form" model="ir.ui.view">
+        <field name="name">project.reclassify.wizard.form</field>
+        <field name="model">project.reclassify.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reclasificación">
+                <sheet>
+                    <div class="alert alert-info" role="alert">
+                        <strong>Ayuda:</strong> Seleccione el nuevo destino
+                        (Proyecto/Tarea/Analítica). Los registros listados abajo serán actualizados.
+                        Puede <b>deseleccionar registros</b> de la lista si no desea procesarlas.
+                    </div>
+
+                    <group string="Valores de Reclasificación">
+                        <group>
+                            <field name="project_id" options="{'no_create': True, 'no_open': True}"/>
+                            <field name="analytic_distribution" widget="analytic_distribution"/>
+                            <field name="analytic_precision" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="task_id"
+                                   context="{'default_project_id': project_id}"
+                                   options="{'no_create': True, 'no_open': True}"/>
+                            <!-- NUEVO: Campo de merge -->
+                            <field name="merge_tasks" invisible="not task_id"/>
+                        </group>
+                    </group>
+
+                    <div class="alert alert-warning" role="alert" invisible="not merge_tasks">
+                        <i class="fa fa-warning" title="Advertencia"/> <strong>Consolidar Tareas:</strong> Las tareas seleccionadas se fusionarán
+                        en la tarea destino y serán eliminadas. Sus timesheets, subtareas y avances serán transferidos.
+                    </div>
+
+                    <separator string="Registros a Procesar"/>
+
+                    <!-- 1. Tareas -->
+                    <group invisible="not task_ids">
+                        <field name="task_ids" nolabel="1" colspan="2">
+                            <tree editable="bottom" create="0" delete="1">
+                                <field name="name" readonly="1"/>
+                                <field name="project_id" readonly="1" string="Proy. Actual"/>
+                                <field name="user_ids" widget="many2many_tags" readonly="1"/>
+                                <field name="allocated_hours" readonly="1"/>
+                                <field name="date_deadline" readonly="1"/>
+                            </tree>
+                        </field>
+                    </group>
+
+                    <!-- 2. Compras -->
+                    <group invisible="not purchase_line_ids">
+                        <field name="purchase_line_ids" nolabel="1" colspan="2">
+                            <tree editable="bottom" create="0" delete="1">
+                                <field name="order_id" readonly="1" string="ID Orden"/>
+                                <field name="product_id" readonly="1"/>
+                                <field name="name" readonly="1" optional="hide"/>
+                                <field name="project_id" readonly="1" string="Proy. Actual"/>
+                                <field name="task_id" readonly="1" string="Tarea Actual"/>
+                                <field name="analytic_distribution" widget="analytic_distribution"
+                                       readonly="1" string="Distribución Actual"/>
+                            </tree>
+                        </field>
+                    </group>
+
+                    <!-- 3. Compensaciones -->
+                    <group invisible="not compensation_line_ids">
+                        <field name="compensation_line_ids" nolabel="1" colspan="2">
+                            <tree editable="bottom" create="0" delete="1">
+                                <field name="employee_id" readonly="1"/>
+                                <field name="date" readonly="1"/>
+                                <field name="project_id" readonly="1" string="Proy. Actual"/>
+                                <field name="task_id" readonly="1" string="Tarea Actual"/>
+                                <field name="monetary_compensation" readonly="1"/>
+                            </tree>
+                        </field>
+                    </group>
+
+                    <!-- 4. Requisiciones -->
+                    <group invisible="not requisition_line_ids">
+                        <field name="requisition_line_ids" nolabel="1" colspan="2">
+                            <tree editable="bottom" create="0" delete="1">
+                                <field name="product_id" readonly="1"/>
+                                <field name="description" readonly="1"/>
+                                <field name="quantity" readonly="1"/>
+                                <field name="analytic_distribution" widget="analytic_distribution"
+                                       readonly="1"/>
+                            </tree>
+                        </field>
+                    </group>
+
+                    <!-- 5. Gastos -->
+                    <group invisible="not expense_line_ids">
+                        <field name="expense_line_ids" nolabel="1" colspan="2">
+                            <tree editable="bottom" create="0" delete="1">
+                                <field name="date" readonly="1"/>
+                                <field name="employee_id" readonly="1"/>
+                                <field name="name" readonly="1"/>
+                                <field name="project_id" readonly="1" string="Proy. Actual"/>
+                                <field name="task_id" readonly="1" string="Tarea Actual"/>
+                                <field name="analytic_distribution" widget="analytic_distribution"
+                                       readonly="1"/>
+                                <field name="total_amount" readonly="1"/>
+                            </tree>
+                        </field>
+                    </group>
+
+                    <!-- 6. Stock Moves -->
+                    <group invisible="not stock_move_ids">
+                        <field name="stock_move_ids" nolabel="1" colspan="2">
+                            <tree editable="bottom" create="0" delete="1">
+                                <field name="date" readonly="1"/>
+                                <field name="product_id" readonly="1"/>
+                                <field name="project_id" readonly="1" string="Proy. Actual"/>
+                                <field name="task_id" readonly="1" string="Tarea Actual"/>
+                                <field name="state" readonly="1"/>
+                            </tree>
+                        </field>
+                    </group>
+
+                    <!-- 7. Apuntes Contables -->
+                    <group invisible="not move_line_ids">
+                        <field name="move_line_ids" nolabel="1" colspan="2">
+                            <tree editable="bottom" create="0" delete="1">
+                                <field name="move_id" readonly="1" string="Asiento"/>
+                                <field name="date" readonly="1"/>
+                                <field name="account_id" readonly="1"/>
+                                <field name="name" readonly="1"/>
+                                <field name="analytic_distribution" widget="analytic_distribution"
+                                       readonly="1"/>
+                                <field name="debit" readonly="1"/>
+                                <field name="credit" readonly="1"/>
+                            </tree>
+                        </field>
+                    </group>
+
+                    <!-- 8. Líneas Analíticas -->
+                    <group invisible="not analytic_line_ids">
+                        <field name="analytic_line_ids" nolabel="1" colspan="2">
+                            <tree editable="bottom" create="0" delete="1">
+                                <field name="date" readonly="1"/>
+                                <field name="project_id" readonly="1" string="Proy. Actual"/>
+                                <field name="task_id" readonly="1" string="Tarea Actual"/>
+                                <field name="name" readonly="1"/>
+                                <field name="amount" readonly="1"/>
+                            </tree>
+                        </field>
+                    </group>
+
+                    <footer>
+                        <button name="action_reclassify" string="Reclasificar" type="object"
+                                class="btn-primary"/>
+                        <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- ACCIONES DE VENTANA (BINDINGS) -->
+
+    <!-- 1. TAREAS -->
+    <record id="action_project_reclassify_task" model="ir.actions.act_window">
+        <field name="name">🔄Reclasificar</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_reclassify_wizard_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="project.model_project_task"/>
+        <field name="binding_view_types">list,form</field>
+    </record>
+
+    <!-- 2. COMPRAS (purchase.order) -->
+    <record id="action_project_reclassify_purchase_order" model="ir.actions.act_window">
+        <field name="name">🔄Reclasificar</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_reclassify_wizard_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="purchase.model_purchase_order"/>
+        <field name="binding_view_types">list,form</field>
+    </record>
+
+    <!-- 3. LÍNEAS DE COMPRA (purchase.order.line) -->
+    <record id="action_project_reclassify_purchase_line" model="ir.actions.act_window">
+        <field name="name">🔄Reclasificar</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_reclassify_wizard_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="purchase.model_purchase_order_line"/>
+        <field name="binding_view_types">list</field>
+    </record>
+
+    <!-- 4. STOCK PICKING -->
+    <record id="action_project_reclassify_stock_picking" model="ir.actions.act_window">
+        <field name="name">🔄Reclasificar</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_reclassify_wizard_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="stock.model_stock_picking"/>
+        <field name="binding_view_types">list,form</field>
+    </record>
+
+    <!-- 5. STOCK MOVE -->
+    <record id="action_project_reclassify_stock_move" model="ir.actions.act_window">
+        <field name="name">🔄Reclasificar</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_reclassify_wizard_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="stock.model_stock_move"/>
+        <field name="binding_view_types">list</field>
+    </record>
+
+    <!-- 6. ANALYTIC LINES -->
+    <record id="action_project_reclassify_analytic_line" model="ir.actions.act_window">
+        <field name="name">🔄Reclasificar</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_reclassify_wizard_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="analytic.model_account_analytic_line"/>
+        <field name="binding_view_types">list</field>
+    </record>
+
+    <!-- 7. ACCOUNT MOVE LINES -->
+    <record id="action_project_reclassify_account_move_line" model="ir.actions.act_window">
+        <field name="name">Reclasificar Analítica 🔄</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_reclassify_wizard_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="account.model_account_move_line"/>
+        <field name="binding_view_types">list</field>
+    </record>
+
+    <!-- 8. ACCOUNT MOVES -->
+    <record id="action_project_reclassify_account_move" model="ir.actions.act_window">
+        <field name="name">Reclasificar Asiento 🔄</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_reclassify_wizard_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="account.model_account_move"/>
+        <field name="binding_view_types">list,form</field>
+    </record>
+
+    <!-- 9. GASTOS -->
+    <record id="action_project_reclassify_hr_expense" model="ir.actions.act_window">
+        <field name="name">🔄Reclasificar</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_reclassify_wizard_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="hr_expense.model_hr_expense"/>
+        <field name="binding_view_types">list,form</field>
+    </record>
+
+    <!-- 10. REPORTES DE GASTOS -->
+    <record id="action_project_reclassify_hr_expense_sheet" model="ir.actions.act_window">
+        <field name="name">🔄Reclasificar</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_reclassify_wizard_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="hr_expense.model_hr_expense_sheet"/>
+        <field name="binding_view_types">list,form</field>
+    </record>
+
+    <!-- 11. REQUISICIONES DE EMPLEADO -->
+    <record id="action_project_reclassify_employee_purchase_requisition"
+            model="ir.actions.act_window">
+        <field name="name">🔄Reclasificar</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">project.reclassify.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_project_reclassify_wizard_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id"
+               ref="employee_purchase_requisition.model_employee_purchase_requisition"/>
+        <field name="binding_view_types">list,form</field>
+    </record>
+
+</odoo>

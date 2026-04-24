@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="view_employee_form_inherit_project_modificaciones" model="ir.ui.view">
+        <field name="name">hr.employee.form.inherit.project.modificaciones</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[@name='managers']" position="inside">
+                <field name="apropador_tarea_obra" widget="many2one_avatar_user" />
+            </xpath>
+
+            <xpath expr="//group/group/field[@name='company_id']" position="after">
+                <field name="proyecto_supervisor"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>
