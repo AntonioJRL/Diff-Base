@@ -27,6 +27,14 @@ class Disciplina(models.Model):
     sequence_id = fields.Many2one('ir.sequence', string='Secuencia', readonly=True)
     sequence_generated = fields.Boolean(string='Secuencia Generada', default=False, readonly=True)
 
+    company_id = fields.Many2one(
+        'res.company',
+        string="Empresa",
+        default=lambda self: self.env.company,
+        index=True,
+        help="Campo el cual relaciona el Servicio a una Empresa.",
+    )
+
     def generate_sequence(self):
         for disciplina in self:
             if not disciplina.sequence_id:

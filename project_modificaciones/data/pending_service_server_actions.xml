@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_sync_pending_service_company" model="ir.actions.server">
+        <field name="name">Sincronizar empresa desde disciplina</field>
+        <field name="model_id" ref="model_pending_service"/>
+        <field name="binding_model_id" ref="model_pending_service"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">records.action_sync_company_from_disciplina()</field>
+    </record>
+</odoo>

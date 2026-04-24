@@ -12,7 +12,7 @@ class SaleLine(models.Model):
     # -------------------------------------------------------------------------
 
     task_id = fields.Many2one(
-        "project.task", "Tarea", domain="[('sale_line_id', '=', id)]"
+        "project.task", "Tarea", domain="[('sale_line_id', '=', id)]", index=True
     )
 
     pending_line_id = fields.Many2one(

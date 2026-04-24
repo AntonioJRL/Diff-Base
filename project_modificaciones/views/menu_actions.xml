@@ -22,14 +22,14 @@
     </menuitem>
 
     <menuitem
-        name="Proyectos"
+        name="Agrupadores"
         id="menu_proyectos_control_obra"
         parent="menu_control_obra_root"
-        sequence="1"
+        sequence="2"
     />
 
     <menuitem
-        name="Proyectos"
+        name="Agrupadores"
         id="menu_proyectos"
         action="open_projects"
         parent="menu_proyectos_control_obra"
@@ -41,14 +41,14 @@
         id="menu_tareas_control_obra"
         action="open_task"
         parent="menu_control_obra_root"
-        sequence="2"
+        sequence="3"
     />
 
     <menuitem
         name="Ventas"
         id="menu_ventas_control_obra"
         parent="menu_control_obra_root"
-        sequence="3"
+        sequence="4"
     />
 
 
@@ -73,14 +73,14 @@
         name="Productos"
         parent="menu_ventas_control_obra"
         action="action_control_obra_products"
-        sequence="3" 
+        sequence="4" 
     />
 
     <menuitem
         name="Control"
         id="menu_control_obra"
         parent="menu_control_obra_root"
-        sequence="4"
+        sequence="5"
     />
 
     <menuitem
@@ -141,7 +141,7 @@
         id="menu_avances_control_obra"
         parent="menu_control_obra_root"
         action="project_sub_update_action"
-        sequence="5"
+        sequence="6"
     />
 
     <!-- Inicio de Menú Reportes -->
@@ -151,6 +151,14 @@
         parent="menu_proyectos_control_obra"
         action="action_project_profitability_report"
         sequence="2"
+    />
+
+    <menuitem 
+        name="Gestión Proyectos"
+        id="menu_project_control_board"
+        parent="menu_control_obra_root"
+        action="action_project_control_board"
+        sequence="1"
     />
 
 </odoo>

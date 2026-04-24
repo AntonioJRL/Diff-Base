@@ -42,6 +42,10 @@ class DashboardSaleOrder(models.Model):
     purchase_total = fields.Monetary(
         string='Total Compras', compute='_compute_purchase_data')
 
+    ########## TAREAS ##########
+    task_count = fields.Integer(
+        string='Tareas', compute='_compute_task_count')
+
     ########## GASTOS ##########
     expenses_count = fields.Integer(
         string='Gastos', compute='_compute_expenses_count')
@@ -66,11 +70,37 @@ class DashboardSaleOrder(models.Model):
     stock_move_cost = fields.Monetary(
         string='Costo Mov. Almacén', compute='_compute_stock_move_data')
 
+    ########## HOJAS DE HORAS ##########
+    timesheet_count = fields.Integer(
+        string='Hojas de Horas', compute='_compute_timesheet_data')
+    timesheet_total = fields.Monetary(
+        string='Costo Hojas de Horas', compute='_compute_timesheet_data')
+    timesheet_total_hr = fields.Float(
+        string='Total Horas', compute='_compute_timesheet_data'
+    )
+
     ########## AVANCES ##########
     avances_count = fields.Integer(
         string='Número de Avances', compute='_compute_avances_count')
     avances_progress = fields.Float(
         string='Progreso Total', compute='_compute_avances_data')
+
+    def _get_related_tasks(self):
+        self.ensure_one()
+        if not self.sale_order_id:
+            return self.env['project.task']
+        return self.env['project.task'].search([
+            ('sale_order_id', '=', self.sale_order_id.id)
+        ])
+
+    def _get_related_timesheets(self, tasks=None):
+        self.ensure_one()
+        tasks = tasks if tasks is not None else self._get_related_tasks()
+        if not tasks:
+            return self.env['account.analytic.line']
+        return self.env['account.analytic.line'].sudo().search([
+            ('task_id', 'in', tasks.ids)
+        ])
 
     def _compute_name(self):
         for wizard in self:
@@ -83,10 +113,12 @@ class DashboardSaleOrder(models.Model):
 
             wizard._compute_financials()
             wizard._compute_purchase_data()
+            wizard._compute_task_count()
             wizard._compute_expenses_data()
             wizard._compute_lines_data()
             wizard._compute_requisition_count()
             wizard._compute_stock_move_data()
+            wizard._compute_timesheet_data()
             wizard._compute_avances_data()
 
             # Preparar datos de avances para la plantilla
@@ -120,11 +152,43 @@ class DashboardSaleOrder(models.Model):
                         'estado': line.state,
                     })
 
+            tasks_data = []
+            tasks = wizard._get_related_tasks()
+            for task in tasks:
+                tasks_data.append({
+                    'name': task.display_name,
+                    'project': task.project_id.display_name or '-',
+                    'stage': task.stage_id.display_name or '-',
+                    'state': task.state or '-',
+                    'progress': task.progress or 0,
+                    'delivered': task.quant_progress or 0.0,
+                    'subtotal': task.price_subtotal or 0.0,
+                })
+
+            timesheets_data = []
+            timesheets = wizard._get_related_timesheets(tasks)
+            timesheets.mapped('employee_id.name')
+            timesheets.mapped('task_id.name')
+            for ts in timesheets.sorted('date', reverse=True):
+                timesheets_data.append({
+                    'employee': ts.employee_id.name or '-',
+                    'task': ts.task_id.display_name or '-',
+                    'project': ts.project_id.display_name or '-',
+                    'date': ts.date,
+                    'description': ts.name or 'Sin Descripción',
+                    'unit_amount': ts.unit_amount or 0.0,
+                    'total': abs(ts.amount),
+                })
+
             values = {
                 'sale_order': wizard.sale_order_id,
                 'financials': {
                     'revenue': wizard.total_revenue,
                     'costs': wizard.total_costs,
+                    'purchase_total': wizard.purchase_total,
+                    'expenses_total': wizard.expenses_total,
+                    'stock_move_cost': wizard.stock_move_cost,
+                    'timesheet_total': wizard.timesheet_total,
                     'invoiced': wizard.total_invoiced,
                     'x_invoiced': wizard.total_x_invoiced,
                     'profit_margin': wizard.profit_margin,
@@ -133,6 +197,7 @@ class DashboardSaleOrder(models.Model):
                     'entregado': wizard.total_entregado,
                 },
                 'metrics': {
+                    'task_count': wizard.task_count,
                     'purchase_count': wizard.purchase_count,
                     'purchase_total': wizard.purchase_total,
                     'expenses_count': wizard.expenses_count,
@@ -142,6 +207,9 @@ class DashboardSaleOrder(models.Model):
                     'requisition_count': wizard.requisition_count,
                     'stock_move_count': wizard.stock_move_count,
                     'stock_move_cost': wizard.stock_move_cost,
+                    'timesheet_count': wizard.timesheet_count,
+                    'timesheet_total': wizard.timesheet_total,
+                    'timesheet_hr_total': wizard.timesheet_total_hr,
                     'avances_count': wizard.avances_count,
                     'avances_progress': wizard.avances_progress,
                     'avances_units_delivered': getattr(wizard, 'avances_units_delivered', 0),
@@ -156,6 +224,8 @@ class DashboardSaleOrder(models.Model):
                 'current_date': datetime.now().strftime("%d/%m/%Y"),
                 'avances_list': avances_data,  # Lista de avances para desglose
                 'lines_list': lines_data,  # Nueva lista de lineas de venta
+                'tasks_list': tasks_data,
+                'timesheets_list': timesheets_data,
 
             }
 
@@ -164,6 +234,11 @@ class DashboardSaleOrder(models.Model):
 
     def _compute_financials(self):
         for wizard in self:
+            wizard._compute_purchase_data()
+            wizard._compute_expenses_data()
+            wizard._compute_stock_move_data()
+            wizard._compute_timesheet_data()
+
             # Total Entregado
             wizard.total_entregado = sum(
                 line.qty_delivered * line.price_unit for line in wizard.sale_order_line_ids)
@@ -171,9 +246,13 @@ class DashboardSaleOrder(models.Model):
             # Ingresos totales de la orden de venta
             wizard.total_revenue = wizard.sale_order_id.amount_untaxed if wizard.sale_order_id else 0.0
 
-            # Costos totales (compras + gastos)
-            wizard.total_costs = (wizard.purchase_total or 0) + \
-                (wizard.expenses_total or 0)
+            # Costos totales (compras + gastos + almacén + hojas)
+            wizard.total_costs = (
+                (wizard.purchase_total or 0)
+                + (wizard.expenses_total or 0)
+                + (wizard.stock_move_cost or 0)
+                + (wizard.timesheet_total or 0)
+            )
 
             # Facturado: Suma de la cantidad facturada multiplicada por el precio unitario de cada línea.
             wizard.total_invoiced = sum(
@@ -193,11 +272,14 @@ class DashboardSaleOrder(models.Model):
             else:
                 wizard.profitability_percentage = 0.0
 
+    def _compute_task_count(self):
+        for record in self:
+            record.task_count = len(record._get_related_tasks()) if record.sale_order_id else 0
+
     def _compute_purchase_count(self):
         for record in self:
             if record.sale_order_id:
-                task_ids = self.env['project.task'].search(
-                    [('sale_order_id', '=', record.sale_order_id.id)])
+                task_ids = record._get_related_tasks()
                 purchase_order_lines = self.env['purchase.order.line'].search(
                     [('task_id', 'in', task_ids.ids)])
                 purchase_order_ids = purchase_order_lines.mapped('order_id')
@@ -208,8 +290,7 @@ class DashboardSaleOrder(models.Model):
     def _compute_purchase_data(self):
         for record in self:
             if record.sale_order_id:
-                task_ids = self.env['project.task'].search(
-                    [('sale_order_id', '=', record.sale_order_id.id)])
+                task_ids = record._get_related_tasks()
                 purchase_order_lines = self.env['purchase.order.line'].search([
                     ('task_id', 'in', task_ids.ids),
                     ('order_id.state', 'in', ('purchase', 'done'))
@@ -222,8 +303,7 @@ class DashboardSaleOrder(models.Model):
     def _compute_expenses_count(self):
         for record in self:
             if record.sale_order_id:
-                task_ids = self.env['project.task'].search(
-                    [('sale_order_id', '=', record.sale_order_id.id)])
+                task_ids = record._get_related_tasks()
                 expenses = self.env['hr.expense'].search(
                     [('task_id', 'in', task_ids.ids)])
                 record.expenses_count = len(expenses)
@@ -233,11 +313,10 @@ class DashboardSaleOrder(models.Model):
     def _compute_expenses_data(self):
         for record in self:
             if record.sale_order_id:
-                task_ids = self.env['project.task'].search(
-                    [('sale_order_id', '=', record.sale_order_id.id)])
+                task_ids = record._get_related_tasks()
                 expenses = self.env['hr.expense'].search([
                     ('task_id', 'in', task_ids.ids),
-                    ('state', 'in', ('approved', 'done'))
+                    ('sheet_id.state', 'in', ('approve', 'post', 'done'))
                 ])
                 record.expenses_total = sum(expenses.mapped('total_amount'))
             else:
@@ -257,8 +336,7 @@ class DashboardSaleOrder(models.Model):
             count = 0
             if record.sale_order_id:
                 # Buscar tareas relacionadas con la orden de venta
-                task_ids = self.env['project.task'].search(
-                    [('sale_order_id', '=', record.sale_order_id.id)])
+                task_ids = record._get_related_tasks()
                 if task_ids:
                     count = self.env['employee.purchase.requisition'].search_count(
                         [('task_id', 'in', task_ids.ids)])
@@ -270,17 +348,24 @@ class DashboardSaleOrder(models.Model):
             cost = 0.0
             if record.sale_order_id:
                 # Buscar tareas relacionadas con la orden de venta
-                tasks = self.env['project.task'].search(
-                    [('sale_order_id', '=', record.sale_order_id.id)])
+                tasks = record._get_related_tasks()
                 if tasks:
-                    # Usamos los campos computados que ya agregamos a project.task
-                    # Esto asume que stock_move_count y stock_move_cost existen en project.task
-                    # Si no, tendríamos que recalcularlo aquí igual que en la tarea.
-                    # Dado que ya lo implementamos en la tarea, podemos sumar.
                     count = sum(tasks.mapped('stock_move_count'))
                     cost = sum(tasks.mapped('stock_move_cost'))
             record.stock_move_count = count
             record.stock_move_cost = cost
+
+    def _compute_timesheet_data(self):
+        for record in self:
+            if record.sale_order_id:
+                tasks = record._get_related_tasks()
+                timesheets = record._get_related_timesheets(tasks)
+                record.timesheet_count = len(timesheets)
+                record.timesheet_total = sum(abs(line.amount) for line in timesheets)
+                record.timesheet_total_hr = sum(timesheets.mapped('unit_amount'))
+            else:
+                record.timesheet_count = 0
+                record.timesheet_total = 0.0
 
     def _compute_avances_count(self):
         for record in self:
@@ -370,12 +455,9 @@ class DashboardSaleOrder(models.Model):
     def action_view_purchase_orders(self):
         self.ensure_one()
         if self.sale_order_id:
-            task_ids = self.env['project.task'].search(
-                [('sale_order_id', '=', self.sale_order_id.id)])
+            task_ids = self._get_related_tasks()
             purchase_order_lines = self.env['purchase.order.line'].search(
                 [('task_id', 'in', task_ids.ids)])
-            # No sirve solo debemos obtener la lineas de orden de compra
-            purchase_order_ids = purchase_order_lines.mapped('order_id')
 
             return {
                 'type': 'ir.actions.act_window',
@@ -390,8 +472,7 @@ class DashboardSaleOrder(models.Model):
     def action_view_expenses_count(self):
         self.ensure_one()
         if self.sale_order_id:
-            task_ids = self.env['project.task'].search(
-                [('sale_order_id', '=', self.sale_order_id.id)])
+            task_ids = self._get_related_tasks()
             expenses = self.env['hr.expense'].search(
                 [('task_id', 'in', task_ids.ids)])
 
@@ -421,8 +502,7 @@ class DashboardSaleOrder(models.Model):
     def action_view_requisitions(self):
         self.ensure_one()
         if self.sale_order_id:
-            task_ids = self.env['project.task'].search(
-                [('sale_order_id', '=', self.sale_order_id.id)])
+            task_ids = self._get_related_tasks()
             return {
                 'type': 'ir.actions.act_window',
                 'name': 'Requisiciones Relacionadas',
@@ -436,14 +516,42 @@ class DashboardSaleOrder(models.Model):
     def action_view_stock_moves(self):
         self.ensure_one()
         if self.sale_order_id:
-            task_ids = self.env['project.task'].search(
-                [('sale_order_id', '=', self.sale_order_id.id)])
+            task_ids = self._get_related_tasks()
             return {
                 'type': 'ir.actions.act_window',
                 'name': 'Movimientos de Almacén',
                 'res_model': 'stock.move',
                 'view_mode': 'tree,form',
                 'domain': [('task_id', 'in', task_ids.ids), ('state', '=', 'done'), ('picking_type_id.code', '=', 'outgoing')],
+                'context': {'create': False},
+            }
+        return False
+
+    def action_view_tasks(self):
+        self.ensure_one()
+        if self.sale_order_id:
+            tasks = self._get_related_tasks()
+            return {
+                'type': 'ir.actions.act_window',
+                'name': 'Tareas Relacionadas',
+                'res_model': 'project.task',
+                'view_mode': 'list,kanban,form',
+                'domain': [('id', 'in', tasks.ids)],
+                'context': {'create': False},
+            }
+        return False
+
+    def action_view_timesheets(self):
+        self.ensure_one()
+        if self.sale_order_id:
+            tasks = self._get_related_tasks()
+            timesheets = self._get_related_timesheets(tasks)
+            return {
+                'type': 'ir.actions.act_window',
+                'name': 'Hojas de Horas',
+                'res_model': 'account.analytic.line',
+                'view_mode': 'list,form',
+                'domain': [('id', 'in', timesheets.ids)],
                 'context': {'create': False},
             }
         return False

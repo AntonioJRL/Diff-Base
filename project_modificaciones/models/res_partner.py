@@ -37,3 +37,9 @@ class ResPartner(models.Model):
             else:
                 # Empresa o contacto sin padre: comportamiento normal
                 super(ResPartner, partner)._compute_display_name()
+
+    cliente_obra = fields.Boolean(
+        string="Cliente Obra",
+        default=False,
+        help="Marque esta casilla para indicar que este cliente es un cliente de obra."
+    )

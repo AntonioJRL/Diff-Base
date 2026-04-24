@@ -63,20 +63,7 @@
                         </field>
                     </group>
 
-                    <!-- 3. Compensaciones -->
-                    <group invisible="not compensation_line_ids">
-                        <field name="compensation_line_ids" nolabel="1" colspan="2">
-                            <tree editable="bottom" create="0" delete="1">
-                                <field name="employee_id" readonly="1"/>
-                                <field name="date" readonly="1"/>
-                                <field name="project_id" readonly="1" string="Proy. Actual"/>
-                                <field name="task_id" readonly="1" string="Tarea Actual"/>
-                                <field name="monetary_compensation" readonly="1"/>
-                            </tree>
-                        </field>
-                    </group>
-
-                    <!-- 4. Requisiciones -->
+                    <!-- 3. Requisiciones -->
                     <group invisible="not requisition_line_ids">
                         <field name="requisition_line_ids" nolabel="1" colspan="2">
                             <tree editable="bottom" create="0" delete="1">
@@ -89,7 +76,7 @@
                         </field>
                     </group>
 
-                    <!-- 5. Gastos -->
+                    <!-- 4. Gastos -->
                     <group invisible="not expense_line_ids">
                         <field name="expense_line_ids" nolabel="1" colspan="2">
                             <tree editable="bottom" create="0" delete="1">
@@ -105,7 +92,7 @@
                         </field>
                     </group>
 
-                    <!-- 6. Stock Moves -->
+                    <!-- 5. Stock Moves -->
                     <group invisible="not stock_move_ids">
                         <field name="stock_move_ids" nolabel="1" colspan="2">
                             <tree editable="bottom" create="0" delete="1">
@@ -118,7 +105,7 @@
                         </field>
                     </group>
 
-                    <!-- 7. Apuntes Contables -->
+                    <!-- 6. Apuntes Contables -->
                     <group invisible="not move_line_ids">
                         <field name="move_line_ids" nolabel="1" colspan="2">
                             <tree editable="bottom" create="0" delete="1">
@@ -134,7 +121,7 @@
                         </field>
                     </group>
 
-                    <!-- 8. Líneas Analíticas -->
+                    <!-- 7. Líneas Analíticas -->
                     <group invisible="not analytic_line_ids">
                         <field name="analytic_line_ids" nolabel="1" colspan="2">
                             <tree editable="bottom" create="0" delete="1">

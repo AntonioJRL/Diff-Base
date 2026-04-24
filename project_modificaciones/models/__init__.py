@@ -23,3 +23,4 @@ from . import hr_expense
 from . import wizard_rechazado_task
 from . import stock
 from . import project_profitability_report
+from . import project_control_board

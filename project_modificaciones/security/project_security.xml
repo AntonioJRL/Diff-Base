@@ -27,5 +27,11 @@
             <field name="comment">Este grupo permite al usuario poder aprobar una actividad aunque no sea el aprobador asignado.</field>
             <field name="users" eval="[(4, ref('base.user_admin'))]" />
         </record>
+        <record id="rule_project_control_board_company" model="ir.rule">
+            <field name="name">Tablero de Proyectos por Empresa</field>
+            <field name="model_id" ref="model_project_control_board" />
+            <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+            <field name="groups" eval="[(4, ref('base.group_user'))]" />
+        </record>
     </data>
 </odoo>

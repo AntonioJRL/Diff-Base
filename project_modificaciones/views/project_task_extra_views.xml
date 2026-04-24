@@ -46,9 +46,18 @@
                     type="object" class="oe_highlight"
                     invisible="not can_user_approve or approval_state in ['to_approve', 'draft', 'approved'] or is_control_obra == False" />
 
+                <button name="action_recompute_progress_metrics" string="Recalcular Progreso"
+                    type="object" class="oe_highlight" />
+
                 <field name="approval_state" widget="statusbar"
                     statusbar_visible="draft,to_approve,approved"
                     invisible="is_control_obra == False" />
+            </xpath>
+
+            <xpath
+                expr="//form/sheet/group/group/div[@id='date_deadline_and_recurring_task']/field[@name='date_deadline']"
+                position="attributes">
+                <attribute name="required">id == False</attribute>
             </xpath>
 
             <xpath expr="//field[@name='name']" position="attributes">
@@ -303,7 +312,8 @@
                                         <field name="costo_avance_formateado" />
                                     </group>
                                 </group>
-                                <!-- Campos de dominio eliminados para evitar problemas con IDs inválidos -->
+                                <!-- Campos de dominio eliminados para evitar problemas con IDs
+                                inválidos -->
 
                                 <separator string="Estado de la facturacion" />
                                 <group>
@@ -322,7 +332,7 @@
                                     </group>
                                     <group>
                                         <field name="om" readonly="avances_state in 'assigned'" />
-                                        <field name="numlic"/>
+                                        <field name="numlic" />
                                         <field name="cot" readonly="avances_state in 'assigned'" />
                                         <field name="avanceparc"
                                             readonly="avances_state in 'assigned'" /> <!--readonly="0"-->
@@ -456,7 +466,7 @@
         <field name="inherit_id" ref="project.view_task_tree2" />
         <field name="arch" type="xml">
             <xpath expr="//field[@name='name']" position="after">
-                <field name="progress" widget="progressbar" optional="show"/>
+                <field name="progress" widget="progressbar" optional="show" />
             </xpath>
         </field>
     </record>
@@ -472,7 +482,6 @@
         </field>
         <field name="context"
             eval="{
-            'group_by': 'state',
             'create': True,
             'default_is_control_obra': True,
             }" />
@@ -481,7 +490,7 @@
             eval="[
             (5, 0, 0),
             (0, 0, {'view_mode': 'tree', 'view_id': ref('project.view_task_tree2')}),
-            (0, 0, {'view_mode': 'kanban', 'view_id': ref('project_modificaciones.view_task_kanban_control_obra')}),
+            (0, 0, {'view_mode': 'kanban', 'view_id': ref('project.view_task_kanban')}),
             (0, 0, {'view_mode': 'form', 'view_id': ref('project.view_task_form2')})
         ]" />
         <field name="help" type="html">
@@ -495,7 +504,7 @@
     <record id="view_project_task_form_inherit_sale_line" model="ir.ui.view">
         <field name="name">project.task.form.inherit.sale.line</field>
         <field name="model">project.task</field>
-        <field name="inherit_id" ref="project.view_task_form2"/>
+        <field name="inherit_id" ref="project.view_task_form2" />
         <field name="arch" type="xml">
             <!-- Insertamos el campo justo después del campo “Nombre” -->
             <xpath expr="//field[@name='name']" position="after">
@@ -504,15 +513,15 @@
                     domain="[('order_id', '=', sale_order_id), ('is_service', '=', True)]"
                     options="{'no_create': True}"
                     help="Selecciona la línea de la orden de venta que corresponde a esta tarea."
-                    context="{'default_order_id': sale_order_id}"/>
+                    context="{'default_order_id': sale_order_id}" />
             </xpath>
             <!-- Botón opcional para abrir el wizard de enlace -->
             <xpath expr="//header" position="inside">
                 <button name="action_link_sale_line"
-                        type="object"
-                        string="Vincular línea"
-                        class="oe_highlight"
-                        invisible="sale_line_id != False"/>
+                    type="object"
+                    string="Vincular línea"
+                    class="oe_highlight"
+                    invisible="sale_line_id != False" />
             </xpath>
         </field>
     </record>

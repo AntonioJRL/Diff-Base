@@ -123,7 +123,7 @@
     </record>
 
     <record id="open_projects" model="ir.actions.act_window">
-        <field name="name">Proyectos de Obra</field>
+        <field name="name">Agrupadores</field>
         <field name="res_model">project.project</field>
         <field name="view_mode">tree,form,kanban</field>
         <field name="domain">[('is_proyecto_obra', '=', True)]</field>

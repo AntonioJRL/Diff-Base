@@ -1,13 +1,23 @@
-from odoo import fields, models, api, _
-from markupsafe import Markup
-from odoo.exceptions import ValidationError
+import json
 import logging
+from markupsafe import Markup
+from datetime import datetime
+from odoo import fields, models, api, _
+from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
 
 
 class Task(models.Model):
     _inherit = 'project.task'
+
+    planned_date_begin = fields.Datetime(
+        string="Start date",
+        related="date_assign",
+        store=True,
+        readonly=False,
+        help="Compatibilidad para módulos que esperan una fecha de inicio planeada en project.task.",
+    )
 
     """
     sale_line_id = fields.Many2one(
@@ -21,8 +31,6 @@ class Task(models.Model):
         domain="[('is_service', '=', True), ('is_expense', '=', False), ('state', 'in', ['sale', 'done']), ('order_partner_id', '=?', partner_id), '|', ('company_id', '=', False), ('company_id', '=', company_id)]",
         help="Sales order line linked to this task. Used to synchronize progress with the sale order line."
     )"""
-
-
 
     project_id = fields.Many2one(tracking=True)
 
@@ -86,7 +94,8 @@ class Task(models.Model):
     )
 
     # Contadores rápidos
-    expense_count = fields.Integer(string="Cant. Gastos", compute="_compute_counts")
+    expense_count = fields.Integer(
+        string="Cant. Gastos", compute="_compute_counts")
     purchase_count = fields.Integer(
         string="Cant. Compras", compute="_compute_counts")
     requisition_count = fields.Integer(
@@ -136,40 +145,31 @@ class Task(models.Model):
             moved_qty_per_product = {}
             for move in moves:
                 qty = move.quantity
-                moved_qty_per_product[move.product_id.id] = moved_qty_per_product.get(move.product_id.id, 0.0) + qty
+                moved_qty_per_product[move.product_id.id] = moved_qty_per_product.get(
+                    move.product_id.id, 0.0) + qty
 
             # 2. Obtener cantidades compradas por producto (Solo Confirmadas)
             purchased_qty_per_product = {}
-            purchase_lines = self.env['purchase.order.line'].search([
-                ('task_id', '=', task.id),
-                ('order_id.state', 'in', ['purchase', 'done'])
-            ])
+            purchase_lines = task.purchase_line_ids.filtered(
+                lambda line: line.order_id.state in ['purchase', 'done']
+            )
             for line in purchase_lines:
-                purchased_qty_per_product[line.product_id.id] = purchased_qty_per_product.get(line.product_id.id, 0.0) + line.product_qty
+                purchased_qty_per_product[line.product_id.id] = purchased_qty_per_product.get(
+                    line.product_id.id, 0.0) + line.product_qty
 
             # 3. Lógica de Cobro Neto
             for product_id, moved_qty in moved_qty_per_product.items():
                 purchased_qty = purchased_qty_per_product.get(product_id, 0.0)
                 chargeable_qty = max(0.0, moved_qty - purchased_qty)
                 if chargeable_qty > 0:
-                    product = task.env['product.product'].browse(product_id)
-                    cost += chargeable_qty * product.standard_price
+                    move_product = moves.filtered(lambda move: move.product_id.id == product_id)[:1].product_id
+                    cost += chargeable_qty * (move_product.standard_price or 0.0)
 
             task.stock_move_cost = cost
 
     # ---------------------------------------------------------------------
     # Sync task progress with linked Sale Order Line
     # ---------------------------------------------------------------------
-    def write(self, vals):
-        """Override write to propagate task progress to the linked sale order line.
-        If the task has a `sale_line_id` (Many2one to `sale.order.line`), we update the
-        `qty_delivered` on that line based on the task's `quant_progress` (units completed).
-        This ensures that any change in task progress (or linking a line) is reflected
-        immediately on the sales order.
-        """
-        res = super(Task, self).write(vals)
-        return res
-
     def action_link_sale_line(self):
         """Placeholder method for the "Vincular línea" button.
         Currently does nothing but returns True to avoid errors.
@@ -343,30 +343,29 @@ class Task(models.Model):
         for u in self:
             u.invoiced = u.qty_invoiced * u.price_unit
 
-    @api.model
+    @api.depends("sub_update_ids")
     def _d_update(self):
-        for u in self:
-            # Cambio de modelo para consistencia
-            u.sub_d_update = u.env["project.sub.update"].search(
-                [("project_id.id", "=", u.project_id.id), ("task_id.id", "=", u.id)],
-                limit=1,
+        for task in self:
+            updates = task.sub_update_ids.sorted(
+                key=lambda update: update.write_date or update.create_date or fields.Datetime.now(),
+                reverse=True,
             )
+            task.sub_d_update = updates[:1]
 
     @api.model
     def _check_to_recompute(self):
-        return [id]
+        """Stub auxiliar. Devuelve los IDs del recordset actual para recompute externo."""
+        return self.ids
 
     @api.depends("sub_update_ids")
     def _last_update(self):
-        for u in self:
-            if not u.id:
+        for task in self:
+            if not task.id:
                 continue
-            # Cambio de modelo para consistencia
-            u.sub_update = u.env["project.sub.update"].search(
-                [("project_id.id", "=", u.project_id.id), ("task_id.id", "=", u.id)],
-                order="id desc",
-                limit=1,
-            )
+            task.sub_update = task.sub_update_ids.sorted(
+                key=lambda update: update.write_date or update.create_date or fields.Datetime.now(),
+                reverse=True,
+            )[:1]
 
     @api.depends(
         "sub_update_ids",
@@ -387,52 +386,49 @@ class Task(models.Model):
             if u.sale_line_id:
                 u.sale_line_id.qty_delivered = u.quant_progress
 
+    def _get_progress_denominator(self):
+        """Devuelve el total esperado para calcular el progreso de la tarea.
 
+        - En venta, se usa total_pieces.
+        - En pendientes sin venta, se usa piezas_pendientes.
+        """
+        self.ensure_one()
+        if self.sale_order_id and self.total_pieces:
+            return self.total_pieces
+        return self.piezas_pendientes or self.total_pieces or 0.0
 
     @api.depends(
         "sub_update_ids",
         "sub_update_ids.unit_progress",
         "project_id.update_ids",
-        "quant_progress",  # Añadido: Dependencia sobre la cantidad avanzada
-        "total_pieces",  # Añadido: Dependencia sobre el total esperado
+        "quant_progress",
+        "total_pieces",
+        "piezas_pendientes",
+        "sale_order_id",
     )
     def _progress(self):
         for u in self:
-            progress = 0
-            # Verificar que 'total_pieces' exista y sea mayor que cero
-            if u.total_pieces and u.total_pieces > 0:
-                # Calcular el porcentaje. Odoo maneja la división a float automáticamente.
-                progress = (u.quant_progress / u.total_pieces) * 100
+            progress = 0.0
+            denominator = u._get_progress_denominator()
+            if denominator > 0:
+                progress = (u.quant_progress / denominator) * 100
 
-            # Asignación corregida:
+            # Mantiene el valor entero que ya usa la UI, pero con base correcta.
             u.progress = min(100, int(progress))
 
     @api.depends(
         "sub_update_ids", "sub_update_ids.unit_progress", "project_id.update_ids"
     )
     def _progress_percentage(self):
-        for u in self:
-            # Verifica si el registro está siendo creado (i.e., no tiene ID aún)
-            if not u.id:
-                continue
-            u.progress_percentage = u.progress / 100
+        for task in self:
+            task.progress_percentage = (task.progress or 0) / 100
 
     @api.depends(
         "sub_update_ids", "sub_update_ids.unit_progress", "project_id.update_ids"
     )
     def _subtotal(self):
-        for u in self:
-            if not u.id:
-                continue
-            subtotal = (
-                u.env["sale.order.line"]
-                .search([("id", "=", u.sale_line_id.id)])
-                .mapped("price_subtotal")
-            )
-            if subtotal:
-                u.price_subtotal = float(subtotal[0])
-            else:
-                u.price_subtotal = 0.0
+        for task in self:
+            task.price_subtotal = task.sale_line_id.price_subtotal or 0.0
 
     @api.depends("sub_update_ids", "sub_update_ids.unit_progress")
     def _is_complete(self):
@@ -444,15 +440,14 @@ class Task(models.Model):
             if not task.is_control_obra:
                 continue
 
-            # Respetar flujo de aprobación
-            if task.approval_state in ["draft", "to_approve", "rejected"]:
-                # Respetar el estado de aprobación - no cambiar stage_id
+            denominator = task._get_progress_denominator()
+            if denominator <= 0:
                 continue
 
-            if task.total_pieces == 0:
-                continue
+            progress_reached = (task.progress or 0) >= 100
+            quantity_reached = task.quant_progress >= denominator
 
-            if task.quant_progress == task.total_pieces:
+            if progress_reached or quantity_reached:
                 task.is_complete = True
                 task.state = "1_done"
                 task.stage_id = self.env.ref(
@@ -460,48 +455,46 @@ class Task(models.Model):
                 )
             elif task.quant_progress > 0:
                 task.is_complete = False
-                if task.approval_state == "approved":  # Solo si está aprobada
-                    # Solo mover a "En Progreso" si estaba en "Pendientes" o "Listo" (re-abierta)
-                    # Si el usuario la movió manualmente a otra etapa (ej. "Pausada"), no la forzamos.
-                    stage_pending = self.env.ref(
-                        "project_modificaciones.project_task_type_obra_pending",
-                        raise_if_not_found=False,
-                    )
-                    stage_done = self.env.ref(
-                        "project_modificaciones.project_task_type_obra_done",
-                        raise_if_not_found=False,
-                    )
+                # Si baja de 100%, reabrir y mover a "En Progreso".
+                stage_pending = self.env.ref(
+                    "project_modificaciones.project_task_type_obra_pending",
+                    raise_if_not_found=False,
+                )
+                stage_done = self.env.ref(
+                    "project_modificaciones.project_task_type_obra_done",
+                    raise_if_not_found=False,
+                )
 
-                    if (
-                        task.stage_id in [stage_pending, stage_done]
-                        or not task.stage_id
-                    ):
-                        task.stage_id = self.env.ref(
-                            "project_modificaciones.project_task_type_obra_progress",
-                            raise_if_not_found=False,
-                        )
-                        task.state = "01_in_progress"
-            else:
-                task.is_complete = False
-                if task.approval_state == "approved":  # Solo si está aprobada
-                    # Si regresa a 0, mover a pendientes solo si estaba en progreso o listo
-                    stage_progress = self.env.ref(
+                if (
+                    task.stage_id in [stage_pending, stage_done]
+                    or not task.stage_id
+                    or task.state == "1_done"
+                ):
+                    task.stage_id = self.env.ref(
                         "project_modificaciones.project_task_type_obra_progress",
                         raise_if_not_found=False,
                     )
-                    stage_done = self.env.ref(
-                        "project_modificaciones.project_task_type_obra_done",
+                task.state = "01_in_progress"
+            else:
+                task.is_complete = False
+                # Si regresa a 0, mover a pendientes solo si estaba en progreso o listo
+                stage_progress = self.env.ref(
+                    "project_modificaciones.project_task_type_obra_progress",
+                    raise_if_not_found=False,
+                )
+                stage_done = self.env.ref(
+                    "project_modificaciones.project_task_type_obra_done",
+                    raise_if_not_found=False,
+                )
+
+                if task.stage_id in [stage_progress, stage_done]:
+                    task.stage_id = self.env.ref(
+                        "project_modificaciones.project_task_type_obra_pending",
                         raise_if_not_found=False,
                     )
-
-                    if task.stage_id in [stage_progress, stage_done]:
-                        task.stage_id = self.env.ref(
-                            "project_modificaciones.project_task_type_obra_pending",
-                            raise_if_not_found=False,
-                        )
-                        task.state = (
-                            "04_waiting_normal"  # Solo control obra usa este estado
-                        )
+                    task.state = (
+                        "04_waiting_normal"  # Solo control obra usa este estado
+                    )
 
     @api.model
     def update_task_status(self):
@@ -546,6 +539,202 @@ class Task(models.Model):
         new_dist[str_new_id] = new_dist.get(str_new_id, 0.0) + percentage
 
         return new_dist
+
+    def merge_into_task(self, target_task, pending_service=False, pending_service_line=False):
+        self.ensure_one()
+        if not target_task or self == target_task:
+            return {
+                'target_task': target_task,
+                'moved': {},
+            }
+
+        new_project = target_task.project_id
+        new_analytic = target_task.analytic_account_id or new_project.analytic_account_id
+        old_analytic = self.analytic_account_id or self.project_id.analytic_account_id
+        moved = {
+            'avances': len(self.sub_update_ids),
+            'gastos': len(self.expense_ids.filtered(lambda e: e.state not in ['done', 'refused'])) if 'expense_ids' in self._fields else 0,
+            'compras': 0,
+            'horas': 0,
+            'mov_almacen': len(self.stock_move_ids) if 'stock_move_ids' in self._fields else 0,
+            'requisiciones': len(self.requisition_ids.filtered(lambda r: r.state != 'cancel')) if 'requisition_ids' in self._fields else 0,
+            'regularizaciones': 0,
+            'compensaciones': 0,
+        }
+
+        if not new_project:
+            raise ValidationError(
+                _("La tarea destino '%s' no tiene proyecto asignado.") % target_task.display_name
+            )
+
+        # 1. Avances y project.update por fecha
+        if self.sub_update_ids:
+            avances_by_date = {}
+            for avance in self.sub_update_ids:
+                avance_date = avance.date or fields.Date.today()
+                if avance_date not in avances_by_date:
+                    avances_by_date[avance_date] = self.env['project.sub.update']
+                avances_by_date[avance_date] |= avance
+
+            for p_date, avances in avances_by_date.items():
+                existing_update = self.env['project.update'].search([
+                    ('project_id', '=', new_project.id),
+                    ('date', '=', p_date),
+                ], limit=1)
+
+                if not existing_update:
+                    update_name = avances[0].update_id.name if avances and avances[0].update_id else _('Actualización Transferida')
+                    try:
+                        existing_update = self.env['project.update'].create({
+                            'project_id': new_project.id,
+                            'name': update_name,
+                            'date': p_date,
+                            'user_id': self.env.user.id,
+                            'status': 'on_track',
+                        })
+                    except Exception as exc:
+                        _logger.warning("No se pudo crear project.update destino durante fusión: %s", exc)
+                        existing_update = False
+
+                vals_avance = {
+                    'task_id': target_task.id,
+                    'project_id': new_project.id,
+                    'update_id': existing_update.id if existing_update else False,
+                }
+                if pending_service:
+                    vals_avance['pending_service_id'] = pending_service.id
+                if pending_service_line:
+                    vals_avance['pending_service_line_id'] = pending_service_line.id
+                avances.write(vals_avance)
+
+        # 2. Gastos
+        if 'expense_ids' in self._fields:
+            all_expenses = self.expense_ids.filtered(lambda e: e.state not in ['done', 'refused'])
+            for expense in all_expenses.sudo():
+                vals_expense = {
+                    'task_id': target_task.id,
+                    'project_id': new_project.id,
+                }
+                if new_analytic and 'analytic_distribution' in expense._fields:
+                    vals_expense['analytic_distribution'] = self._get_updated_analytic_distribution(
+                        expense.analytic_distribution, new_analytic.id, old_analytic.id if old_analytic else False
+                    )
+                expense.write(vals_expense)
+
+        # 3. Compras, albaranes y movimientos
+        purchase_orders = self.env['purchase.order'].search([
+            ('task_order_id', '=', self.id),
+            ('state', '!=', 'cancel'),
+        ])
+        if purchase_orders:
+            moved['compras'] += len(purchase_orders)
+            purchase_orders.write({
+                'task_order_id': target_task.id,
+                'project_id': new_project.id,
+            })
+            for line in purchase_orders.mapped('order_line').filtered(lambda l: l.state != 'cancel'):
+                vals_line = {
+                    'task_id': target_task.id,
+                    'project_id': new_project.id,
+                }
+                if new_analytic and 'analytic_distribution' in line._fields:
+                    vals_line['analytic_distribution'] = self._get_updated_analytic_distribution(
+                        line.analytic_distribution, new_analytic.id, old_analytic.id if old_analytic else False
+                    )
+                line.write(vals_line)
+            pickings = purchase_orders.mapped('picking_ids').filtered(lambda p: p.state != 'cancel')
+            if pickings:
+                pickings.write({'task_id': target_task.id, 'project_id': new_project.id})
+                pickings.mapped('move_ids').filtered(lambda m: m.state != 'cancel').write({
+                    'task_id': target_task.id,
+                    'project_id': new_project.id,
+                })
+
+        if 'purchase_line_ids' in self._fields:
+            loose_lines = self.purchase_line_ids.filtered(
+                lambda l: l.state not in ['cancel', 'done'] and l.order_id not in purchase_orders
+            )
+            for line in loose_lines:
+                vals_line = {
+                    'task_id': target_task.id,
+                    'project_id': new_project.id,
+                }
+                if new_analytic and 'analytic_distribution' in line._fields:
+                    vals_line['analytic_distribution'] = self._get_updated_analytic_distribution(
+                        line.analytic_distribution, new_analytic.id, old_analytic.id if old_analytic else False
+                    )
+                line.write(vals_line)
+
+        # 4. Timesheets
+        if 'timesheet_ids' in self._fields:
+            timesheets_model = self.env['account.analytic.line']
+            if 'timesheet_invoice_id' in timesheets_model._fields:
+                timesheets = self.timesheet_ids.filtered(lambda t: not t.timesheet_invoice_id)
+            else:
+                timesheets = self.timesheet_ids
+            if timesheets:
+                moved['horas'] = len(timesheets)
+                ts_vals = {
+                    'task_id': target_task.id,
+                    'project_id': new_project.id,
+                }
+                if target_task.sale_line_id and 'so_line' in timesheets._fields:
+                    ts_vals['so_line'] = target_task.sale_line_id.id
+                timesheets.write(ts_vals)
+
+        # 5. Stock moves directos
+        if 'stock_move_ids' in self._fields and self.stock_move_ids:
+            self.stock_move_ids.write({
+                'task_id': target_task.id,
+                'project_id': new_project.id,
+            })
+
+        # 6. Requisiciones
+        if 'requisition_ids' in self._fields:
+            for req in self.requisition_ids.filtered(lambda r: r.state != 'cancel'):
+                req_vals = {}
+                if 'task_id' in req._fields:
+                    req_vals['task_id'] = target_task.id
+                if 'project_id' in req._fields:
+                    req_vals['project_id'] = new_project.id
+                if 'analytic_distribution' in req._fields and new_analytic:
+                    req_vals['analytic_distribution'] = self._get_updated_analytic_distribution(
+                        getattr(req, 'analytic_distribution', {}), new_analytic.id, old_analytic.id if old_analytic else False
+                    )
+                if req_vals:
+                    req.write(req_vals)
+                if hasattr(req, 'requisition_order_ids') and req.requisition_order_ids:
+                    line_vals = {}
+                    if 'project_id' in self.env['requisition.order']._fields:
+                        line_vals['project_id'] = new_project.id
+                    if line_vals:
+                        req.requisition_order_ids.write(line_vals)
+
+        # 7. Otros modelos auxiliares
+        attendance_model = self.env.get('attendance.regularization')
+        if attendance_model is not None and 'task_id' in attendance_model._fields:
+            attendance_recs = attendance_model.search([('task_id', '=', self.id)])
+            if attendance_recs:
+                moved['regularizaciones'] = len(attendance_recs)
+                vals_att = {'task_id': target_task.id}
+                if 'project_id' in attendance_model._fields:
+                    vals_att['project_id'] = new_project.id
+                attendance_recs.write(vals_att)
+
+        comp_line_model = self.env.get('compensation.line')
+        if comp_line_model is not None and 'task_id' in comp_line_model._fields:
+            comp_lines = comp_line_model.search([('task_id', '=', self.id)])
+            if comp_lines:
+                moved['compensaciones'] = len(comp_lines)
+                vals_comp = {'task_id': target_task.id}
+                if 'project_id' in comp_line_model._fields:
+                    vals_comp['project_id'] = new_project.id
+                comp_lines.write(vals_comp)
+
+        return {
+            'target_task': target_task,
+            'moved': moved,
+        }
 
     # -------------------------------------------------------------------------
     # MÉTODO WRITE: Lógica principal de cambio de proyecto
@@ -694,30 +883,38 @@ class Task(models.Model):
                                 expenses_free.sudo().write(vals_expense)
 
                         # CASO 2: Gastos Bloqueados -> Actualizamos Proyecto Y Analítica vía SQL
-                        # Validamos primero si hay nueva analítica
+                        # Nota de seguridad: usamos parámetros bind (%s) en lugar de
+                        # interpolación de strings para evitar inyección SQL.
                         if expenses_locked:
                             _logger.info(
                                 "Forzando actualización de proyecto/analítica en %s gastos bloqueados", len(expenses_locked))
 
                             for exp in expenses_locked:
-                                updates = "project_id = %s" % new_project.id
-
-                                # Si hay nueva analítica, calculamos el JSON y lo inyectamos
+                                # Si hay nueva analítica, calculamos el JSON y lo actualizamos
                                 if new_analytic:
-                                    import json
                                     new_dist = self._get_updated_analytic_distribution(
                                         exp.analytic_distribution, new_analytic.id, old_analytic.id
                                     )
-                                    # Convertimos dict a JSON string para SQL
                                     json_dist = json.dumps(new_dist)
-                                    updates += ", analytic_distribution = '%s'" % json_dist
-
-                                # Ejecución directa
-                                self.env.cr.execute(f"""
-                                    UPDATE hr_expense
-                                    SET {updates}
-                                    WHERE id = %s
-                                """, (exp.id,))
+                                    # Usamos parámetros bind para project_id Y analytic_distribution
+                                    self.env.cr.execute(
+                                        """
+                                        UPDATE hr_expense
+                                        SET project_id = %s,
+                                            analytic_distribution = %s::jsonb
+                                        WHERE id = %s
+                                        """,
+                                        (new_project.id, json_dist, exp.id)
+                                    )
+                                else:
+                                    self.env.cr.execute(
+                                        """
+                                        UPDATE hr_expense
+                                        SET project_id = %s
+                                        WHERE id = %s
+                                        """,
+                                        (new_project.id, exp.id)
+                                    )
 
                             # Invalidar caché
                             expenses_locked.invalidate_recordset(
@@ -748,12 +945,12 @@ class Task(models.Model):
                             if new_analytic:
                                 # Iteramos por si tienen distribuciones mixtas, aunque es pesado es seguro
                                 for line in lines_to_update:
-                                    _logger.info("DEBUG ANALYTIC: Old=%s, New=%s, Dist=%s",
-                                                 old_analytic.id, new_analytic.id, line.analytic_distribution)
+                                    _logger.debug("ANALYTIC: Old=%s, New=%s, Dist=%s",
+                                                  old_analytic.id, new_analytic.id, line.analytic_distribution)
                                     dist = self._get_updated_analytic_distribution(
                                         line.analytic_distribution, new_analytic.id, old_analytic.id)
-                                    _logger.info(
-                                        "DEBUG ANALYTIC RESULT: %s", dist)
+                                    _logger.debug(
+                                        "ANALYTIC RESULT: %s", dist)
 
                                     line_vals = vals_line.copy()
                                     line_vals['analytic_distribution'] = dist
@@ -797,13 +994,13 @@ class Task(models.Model):
 
                             if new_analytic:
                                 for line in purchase_lines:
-                                    _logger.info("DEBUG ANALYTIC LOOSE: Old=%s, New=%s, Dist=%s",
-                                                 old_analytic.id if old_analytic else False, new_analytic.id, line.analytic_distribution)
+                                    _logger.debug("ANALYTIC LOOSE: Old=%s, New=%s, Dist=%s",
+                                                  old_analytic.id if old_analytic else False, new_analytic.id, line.analytic_distribution)
                                     new_dist_line = self._get_updated_analytic_distribution(
                                         line.analytic_distribution, new_analytic.id, old_analytic.id
                                     )
-                                    _logger.info(
-                                        "DEBUG ANALYTIC LOOSE RESULT: %s", new_dist_line)
+                                    _logger.debug(
+                                        "ANALYTIC LOOSE RESULT: %s", new_dist_line)
 
                                     curr_vals = vals_line_loose.copy()
                                     curr_vals['analytic_distribution'] = new_dist_line
@@ -1006,7 +1203,7 @@ class Task(models.Model):
                                     {'project_id': new_project.id})
 
         return res
-        
+
     """
     def _clean_invalid_references(self):
         for task in self:
@@ -1068,6 +1265,7 @@ class Task(models.Model):
                 "default_project_id": self.project_id.id,
                 "create": True,
                 "delete": False,
+                "soft_reload": True,
             },
             "flags": {"creatable": True},
             "target": "current",
@@ -1115,13 +1313,7 @@ class Task(models.Model):
 
     def action_view_purchases(self):
         self.ensure_one()
-        # 1. Buscar las líneas de compra relacionadas con la tarea.
-        purchase_lines = self.env["purchase.order.line"].search(
-            [("task_id", "=", self.id)]
-        )
-        # 2. Obtener los IDs de las órdenes de compra únicas de esas líneas.
-        purchase_orders = purchase_lines.mapped("order_id")
-        # 3. Devolver la acción con el dominio de los IDs de las órdenes de compra.
+        purchase_orders = self.purchase_line_ids.mapped("order_id")
         return {
             "type": "ir.actions.act_window",
             "name": "Órdenes de compra",
@@ -1217,19 +1409,25 @@ class Task(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        sale_lines_by_id = {
+            line.id: line
+            for line in self.env["sale.order.line"].browse(
+                [vals["sale_line_id"] for vals in vals_list if vals.get("sale_line_id")]
+            )
+        }
 
         # Ajusta el nombre de la tarea.
         for vals in vals_list:
             # Verificamos si la tarea viene de una línea de venta
             if vals.get("sale_line_id"):
                 # Buscamos la línea para obtener la partida
-                line = self.env["sale.order.line"].browse(vals["sale_line_id"])
+                line = sale_lines_by_id.get(vals["sale_line_id"])
 
                 # Si la orden de venta tiene un servicio pendiente, usar el nombre de la orden
-                if line.order_id.pending_service_id:
+                if line and line.order_id.pending_service_id:
                     # Reemplazar el nombre del pendiente por el nombre de la orden de venta
                     vals["name"] = f"{line.order_id.name}: {line.name}"
-                elif line.partida:
+                elif line and line.partida:
                     original_name = vals.get("name", "")
                     # Evitamos duplicar si ya se agregó antes
                     if line.partida not in original_name:
@@ -1472,22 +1670,27 @@ class Task(models.Model):
             )
 
     def action_reject(self):
+        """Abre el wizard de rechazo para la tarea seleccionada.
+        Corregido: usa ensure_one() para operar sobre un único registro y evitar
+        que el return dentro del bucle saltee tareas silenciosamente.
+        """
+        self.ensure_one()
         is_global = self.env.user.has_group(
             'project_modificaciones.permiso_global_aprobar_tarea')
-        for task in self:
-            if task.approval_state != "to_approve":
-                continue
-            if self.env.user != task.approver_id and not is_global:
-                raise ValidationError(
-                    _("Solo el aprobador asignado (%s) o un aprobador global pueden rechazar.") % task.approver_id.name)
 
-            return {
-                "type": "ir.actions.act_window",
-                "res_model": "wizard.rechazado.task",
-                "view_mode": "form",
-                "target": "new",
-                "context": {"active_id": task.id},
-            }
+        if self.approval_state != "to_approve":
+            return False
+        if self.env.user != self.approver_id and not is_global:
+            raise ValidationError(
+                _("Solo el aprobador asignado (%s) o un aprobador global pueden rechazar.") % self.approver_id.name)
+
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "wizard.rechazado.task",
+            "view_mode": "form",
+            "target": "new",
+            "context": {"active_id": self.id},
+        }
 
     def action_draft(self):
         is_global = self.env.user.has_group(
@@ -1539,5 +1742,97 @@ class Task(models.Model):
         'pending.service',
         string="Servicio Pendiente",
         ondelete="set null",
+        index=True,
         help="Servicio pendiente relacionado con la tarea."
     )
+
+    @api.constrains('servicio_pendiente', 'planned_date_begin', 'date_deadline')
+    def _check_task_dates_within_pending_range(self):
+        for task in self:
+            pending = task.servicio_pendiente
+            if not pending:
+                continue
+
+            task_start = task.planned_date_begin
+            task_end = task.date_deadline
+            pending_start = pending.date_start
+            pending_end = pending.date_end_plan
+
+            if task_start and task_end and task_start > task_end:
+                raise ValidationError(_(
+                    "La fecha de inicio de la tarea no puede ser mayor que la fecha límite."
+                ))
+
+            if task_start and pending_start and task_start < pending_start:
+                raise ValidationError(_(
+                    "La tarea '%(task)s' inicia fuera del rango del servicio pendiente '%(pending)s'. "
+                    "Inicio de tarea: %(task_start)s. Inicio permitido: %(pending_start)s."
+                ) % {
+                    'task': task.display_name,
+                    'pending': pending.display_name,
+                    'task_start': fields.Datetime.to_string(task_start),
+                    'pending_start': fields.Datetime.to_string(pending_start),
+                })
+
+            if task_end and pending_end and task_end > pending_end:
+                raise ValidationError(_(
+                    "La tarea '%(task)s' termina fuera del rango del servicio pendiente '%(pending)s'. "
+                    "Fin de tarea: %(task_end)s. Fin permitido: %(pending_end)s."
+                ) % {
+                    'task': task.display_name,
+                    'pending': pending.display_name,
+                    'task_end': fields.Datetime.to_string(task_end),
+                    'pending_end': fields.Datetime.to_string(pending_end),
+                })
+
+    avance_actual = fields.Float(
+        string="Avance Físico Real (%)", compute="_compute_board_progress_metrics", store=True)
+    avance_facturado = fields.Float(
+        string="Avance Facturado (%)", compute="_compute_board_progress_metrics", store=True)
+
+    @api.depends('qty_invoiced', 'sale_order_id', 'total_pieces', 'piezas_pendientes', 'quant_progress')
+    def _compute_board_progress_metrics(self):
+        for task in self:
+            # Avance fisico real.
+            if task.sale_order_id and task.total_pieces > 0:
+                valor_fisico = float(
+                    task.quant_progress * 100) / task.total_pieces
+                task.avance_actual = round(valor_fisico, 2)
+            elif not task.sale_order_id and task.piezas_pendientes > 0:
+                valor_fisico = float(
+                    task.quant_progress * 100) / task.piezas_pendientes
+                task.avance_actual = round(valor_fisico, 2)
+            else:
+                task.avance_actual = 0.0
+
+            # Avance facturado.
+            if task.quant_progress > 0:
+                fact_pct = (task.qty_invoiced / task.quant_progress) * 100.0
+                task.avance_facturado = round(min(100.0, fact_pct), 2)
+            else:
+                task.avance_facturado = 0.0
+
+    def action_recompute_progress_metrics(self):
+        """Recalcula los campos de avance usados por el tablero y tareas."""
+        for task in self:
+            task = task.sudo()
+            if not task.id:
+                continue
+
+            # Recalcular primero los avances físicos base.
+            task._units()
+            task._progress()
+            task._compute_board_progress_metrics()
+            task._update_completion_state()
+
+        return {
+                'type': 'ir.actions.client',
+                'tag': 'display_notification',
+                'params': {
+                    'title': 'Cálculo Completado',
+                    'message': 'Las métricas se han actualizado correctamente.',
+                    'sticky': False, # Si es False, desaparece solo después de unos segundos
+                    'type': 'success', # Verde
+                    'next': {'type': 'ir.actions.client', 'tag': 'soft_reload'},
+                }
+            }

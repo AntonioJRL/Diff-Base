@@ -146,7 +146,7 @@ class ProjectSubUpdate(models.Model):
                 record.write(vals)
 
                 # 4. Refrescar vista del usuario para evitar duplicados OWL
-                return {"type": "ir.actions.client", "tag": "reload"}
+                return {"type": "ir.actions.client", "tag": "soft_reload"}
             else:
                 raise UserError(
                     _("El avance solo puede ser confirmado desde el estado 'Borrador'.")

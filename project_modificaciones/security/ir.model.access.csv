@@ -18,4 +18,7 @@ access_pending_service_wizard,Pending Service Wizard,model_pending_service_wizar
 access_pending_service_wizard_line,Pending Service Wizard Line,model_pending_service_wizard_line,project.group_project_user,1,1,1,1
 access_project_sub_update_reclassify_wizard,Project Sub Update Reclassify Wizard,model_project_sub_update_reclassify_wizard,project.group_project_user,1,1,1,1
 access_project_reclassify_wizard,Project Reclassify Wizard,model_project_reclassify_wizard,project.group_project_user,1,1,1,1
-access_project_profitability_report,Project Profitability Report,model_project_profitability_report,project.group_project_user,1,1,1,1
+access_project_profitability_report,Project Profitability Report,model_project_profitability_report,project.group_project_user,1,1,1,
+access_project_control_board_user,project.control.board.user,model_project_control_board,base.group_user,1,0,0,0
+access_fusion_servicios_pendientes,Fusion Servicios Pendientes,model_fusion_servicios_pendientes,base.group_user,1,1,1,1
+access_fusion_servicios_pendientes_linea, Fusion Servicios Pendientes Linea,model_fusion_servicios_pendientes_linea,base.group_user,1,1,1,1

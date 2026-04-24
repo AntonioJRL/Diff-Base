@@ -1,17 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo>    
+<odoo>
+
     <!-- Template para el informe de servicios pendientes -->
     <template id="report_pending_service_table">
         <t t-foreach="lines" t-as="line">
-            <div style="page-break-inside: avoid; margin-bottom: 20px;">                
+            <div style="page-break-inside: avoid; margin-bottom: 20px;">
+
                 <!-- Descripción arriba de la tabla -->
-                <div style="font-size: 0.9rem; font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: #d72626; font-family: 'Montserrat', sans-serif;">
+                <div style="font-size: 0.9rem; font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: #d72626;">
                     <span>Descripción del Servicio: </span>
-                    <span t-field="line.descripcion_servicio" style="color: #444; font-weight: normal;"/>
+                    <div t-field="line.descripcion_servicio" style="color: #444; font-weight: normal; white-space: pre-line; display: inline;"/>
                 </div>
-                
+
                 <!-- Tabla inicial (Compacta) -->
-                <table class="summary-table industrial-table" border="1" cellpadding="3" cellspacing="0" style="width: 100%; font-size: 0.65rem; border-collapse: collapse; margin-bottom: 6px; border: 1px solid #000; font-family: 'Montserrat', sans-serif;">
+                <table class="summary-table industrial-table" border="1" cellpadding="3" cellspacing="0"
+                       style="width: 100%; font-size: 0.65rem; border-collapse: collapse; margin-bottom: 6px; border: 1px solid #000;">
                     <thead>
                         <tr style="font-weight: bold; background-color: #ffdadaff; color: #000000ff;">
                             <th class="text-center" style="width: 10%;">Folio</th>
@@ -37,7 +40,8 @@
                             <td class="text-center"><span t-field="line.date" t-options='{"widget": "date"}'/></td>
                             <td class="text-center">
                                 <t t-foreach="line.license_ids" t-as="license">
-                                    <span class="badge" style="background-color:#FFFFFF; color:#000; border:1px solid #000; padding:1px 3px; border-radius:2px; margin-right:2px; font-size: 0.55rem;">
+                                    <span class="badge"
+                                          style="background-color:#FFFFFF; color:#000; border:1px solid #000; padding:1px 3px; border-radius:2px; margin-right:2px; font-size: 0.55rem;">
                                         <t t-esc="license.name"/>
                                     </span>
                                 </t>
@@ -49,18 +53,22 @@
                                 <span t-if="line.state == 'pending'">Pendiente</span>
                                 <span t-if="line.state == 'assigned'">Asignada</span>
                                 <span t-if="line.state == 'canceled'">Cancelada</span>
-                                <span t-if="line.state not in ['draft', 'pending', 'assigned', 'canceled']"><t t-esc="line.state"/></span>
+                                <span t-if="line.state not in ['draft', 'pending', 'assigned', 'canceled']">
+                                    <t t-esc="line.state"/>
+                                </span>
                             </td>
                             <td class="text-end" style="padding-right: 3px; font-weight: bold; color: #d72626;">
-                                <span t-field="line.total" t-options='{"widget": "monetary", "display_currency": env.company.currency_id}'/>
+                                <span t-field="line.total"
+                                      t-options='{"widget": "monetary", "display_currency": env.company.currency_id}'/>
                             </td>
                         </tr>
                     </tbody>
-                </table>                
-                
+                </table>
+
                 <!-- Tabla de las líneas de servicio -->
                 <t t-if="line.service_line_ids">
-                    <table class="summary-table industrial-table" border="1" cellpadding="3" cellspacing="0" style="width: 100%; font-size: 0.65rem; border-collapse: collapse; border: 1px solid #d5cbcbff; font-family: 'Montserrat', sans-serif;">
+                    <table class="summary-table industrial-table" border="1" cellpadding="3" cellspacing="0"
+                           style="width: 100%; font-size: 0.65rem; border-collapse: collapse; border: 1px solid #d5cbcbff;">
                         <thead>
                             <tr style="font-weight: bold; background-color: #f2f2f2; color: #d5cbcbff; border-bottom: 2px solid #d72626;">
                                 <th style="width: 12%; padding-left: 5px;">Código</th>
@@ -74,7 +82,8 @@
                             <t t-foreach="line.service_line_ids" t-as="service_line">
                                 <tr>
                                     <td style="padding-left: 5px;">
-                                        <span t-field="service_line.product_id.default_code" t-if="service_line.product_id.default_code"/>
+                                        <span t-field="service_line.product_id.default_code"
+                                              t-if="service_line.product_id.default_code"/>
                                     </td>
                                     <td style="padding-left: 5px;">
                                         <span t-field="service_line.product_id.display_name"/>
@@ -83,8 +92,14 @@
                                         </t>
                                     </td>
                                     <td class="text-center"><span t-field="service_line.quantity"/></td>
-                                    <td class="text-end" style="padding-right: 5px;"><span t-field="service_line.price_unit" t-options='{"widget": "monetary", "display_currency": env.company.currency_id}'/></td>
-                                    <td class="text-end" style="padding-right: 5px;"><span t-field="service_line.total" t-options='{"widget": "monetary", "display_currency": env.company.currency_id}'/></td>
+                                    <td class="text-end" style="padding-right: 5px;">
+                                        <span t-field="service_line.price_unit"
+                                              t-options='{"widget": "monetary", "display_currency": env.company.currency_id}'/>
+                                    </td>
+                                    <td class="text-end" style="padding-right: 5px;">
+                                        <span t-field="service_line.total"
+                                              t-options='{"widget": "monetary", "display_currency": env.company.currency_id}'/>
+                                    </td>
                                 </tr>
                             </t>
                         </tbody>
@@ -93,24 +108,27 @@
             </div>
             <div style="margin-bottom: 10px;"></div>
         </t>
-        
+
         <!-- Gran Total -->
-        <div style="font-size: 0.85rem; text-align: right; margin-top: 15px; border-top: 2px solid #000; padding-top: 5px; font-family: 'Montserrat', sans-serif;">
+        <div style="font-size: 0.85rem; text-align: right; margin-top: 15px; border-top: 2px solid #000; padding-top: 5px;">
             <span style="background-color: #f2f2f2; border: 1px solid #000; padding: 4px 8px; border-radius: 4px; color: #d72626;">
                 <strong>TOTAL GENERAL: </strong>
                 <t t-esc="round(sum(lines.mapped('total')), 2)" t-options='{"widget": "monetary", "display_currency": env.company.currency_id}'/>
             </span>
         </div>
-    </template>    
+    </template>
 
     <!-- Template para la página principal del informe de servicios pendientes -->
     <template id="report_pending_service_page">
         <t t-call="web.html_container">
             <t t-set="data_report_landscape" t-value="True"/>
             <t t-set="full_width" t-value="True"/>
-            
+
             <t t-call="web.basic_layout">
                 <style>
+                    .pending-service-pdf {
+                        font-family: "Liberation Sans", Arial, sans-serif !important;
+                    }
                     .premium-header {
                         border-bottom: 3px solid #000;
                         padding-bottom: 8px;
@@ -140,10 +158,8 @@
                         text-transform: uppercase;
                     }
                 </style>
-                <!-- Meta charset explícito por seguridad -->
-                <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
-                
-                <div class="page" style="padding: 10px; color: #333;">
+
+                <div class="page pending-service-pdf" style="padding: 10px; color: #333;">
                     <!-- Cabecera del Reporte -->
                     <div class="premium-header" style="display: flex; justify-content: space-between; align-items: baseline;">
                         <h3 class="premium-title" style="font-size: 1.4rem;">
@@ -154,13 +170,13 @@
                             Generado: <span t-esc="context_timestamp(datetime.datetime.now()).strftime('%d/%m/%Y %H:%M')"/>
                         </div>
                     </div>
-                    
-                    <t t-set='lines' t-value='docs'/>
+
+                    <t t-set="lines" t-value="docs"/>
                     <t t-call="project_modificaciones.report_pending_service_table"/>
                 </div>
             </t>
         </t>
-    </template>    
+    </template>
 
     <!-- Registro para el informe de servicios pendientes -->
     <record id="pending_service_report" model="ir.actions.report">

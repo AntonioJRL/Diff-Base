@@ -1,0 +1,750 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+    <record id="view_project_control_board_tree" model="ir.ui.view">
+        <field name="name">project.control.board.tree</field>
+        <field name="model">project.control.board</field>
+        <field name="arch" type="xml">
+            <tree string="Tablero de Proyectos" create="false" edit="false" delete="false">
+                <!--<field
+                name="active" invisible="1" />-->
+                <field name="name" />
+                <field name="source" />
+                <field name="priority" />
+                <field name="company_id" />
+                <field name="cliente_id" />
+                <field name="disciplina_id" />
+                <field name="supervisor_id" />
+                <field name="invoice_move_id" optional="hide" />
+                <field name="invoice_substate_id" widget="badge" optional="show" />
+                <field name="invoice_count" optional="hide" />
+                <field name="currency_id" invisible="1" />
+                <field name="date_start" />
+                <field name="date_end" />
+                <!-- MEJORA 7: alerta visual si no hay fecha fin -->
+                <field name="date_end"
+                    decoration-warning="not date_end"
+                    optional="show" />
+                <field name="dias_al_vencimiento" invisible="1" />
+                <field name="vencimiento_label"
+                    decoration-danger="dias_al_vencimiento &lt; 0"
+                    decoration-success="dias_al_vencimiento > 0 or avance &gt;= 100"
+                    decoration-muted="dias_al_vencimiento == 0"
+                    decoration-warning="not date_end" />
+                <field name="avance" widget="float" />
+                <field name="pending_state" widget="badge" />
+                <field name="sale_state" widget="badge" />
+                <field name="state" widget="badge" optional="hide" />
+                <field name="lifecycle_stage" widget="badge" />
+                <!-- MEJORA 2: kanban_color ahora incluye 'no_date' -->
+                <field name="kanban_color" widget="badge"
+                    decoration-warning="kanban_color == 'no_date'"
+                    decoration-danger="kanban_color == 'red'"
+                    decoration-success="kanban_color == 'green'"
+                    decoration-info="kanban_color == 'amber'" />
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_project_control_board_form" model="ir.ui.view">
+        <field name="name">project.control.board.form</field>
+        <field name="model">project.control.board</field>
+        <field name="arch" type="xml">
+            <form string="Tablero de Proyectos">
+                <header>
+                    <button name="action_open_origin" type="object" string="Registro Origen"
+                        class="btn-primary" />
+                    <button name="action_archive" type="object" string="Archivar"
+                        class="btn-secondary" invisible="not active" />
+                    <button name="action_unarchive" type="object" string="Desarchivar"
+                        class="btn-secondary" invisible="active" />
+                    <button name="action_open_tasks" type="object" string="Tareas"
+                        class="btn-secondary" />
+                    <button name="action_open_updates" type="object" string="Avances"
+                        class="btn-secondary" />
+                    <button name="action_open_invoice" type="object" string="Factura"
+                        class="btn-secondary" invisible="not invoice_move_id" />
+                    <button name="action_recompute_metrics" type="object"
+                        string="Recalcular y Actualizar"
+                        class="btn-light" />
+                </header>
+                <sheet>
+                    <field name="active" invisible="1" />
+                    <!-- MEJORA 7: alerta prominente cuando falta la fecha fin en OS -->
+                    <div class="alert alert-warning mb-2"
+                        invisible="source != 'sale' or date_end">
+                        <i class="fa fa-exclamation-triangle me-1" /> Esta orden de venta no tiene <b>Fecha
+                        Compromiso</b> definida. El semáforo y los días de retraso no son
+                        calculables. <a name="action_open_origin" type="object" class="ms-2">Ir a la
+                        OS →</a>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="name" readonly="1" />
+                            <field name="source" readonly="1" />
+                            <field name="priority" readonly="1" />
+                            <field name="company_id" readonly="1" />
+                            <field name="cliente_id" readonly="1" />
+                            <field name="disciplina_id" readonly="1" />
+                            <field name="supervisor_id" readonly="1" />
+                        </group>
+                        <group>
+                            <field name="state" readonly="1" />
+                            <field name="lifecycle_stage" readonly="1" />
+                            <field name="invoice_substate_id" readonly="1" />
+                            <field name="invoice_count" readonly="1" />
+                            <field name="invoice_move_id" readonly="1" invisible="not invoice_move_id" />
+                            <field name="kanban_color" readonly="1" />
+                            <field name="avance" readonly="1" />
+                            <field name="vencimiento_label" readonly="1" />
+                            <field name="dias_al_vencimiento" readonly="1" invisible="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="date_start" readonly="1" />
+                            <field name="date_end" readonly="1" />
+                            <field name="date_end_actual" readonly="1" />
+                        </group>
+                        <group>
+                            <field name="pending_id" readonly="1" invisible="source != 'pending'" />
+                            <field name="sale_id" readonly="1" invisible="source != 'sale'" />
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Referencias de cálculo" name="indicadores_help">
+                            <group>
+                                <div colspan="2"
+                                    style="padding:8px 0; color:#555; font-size:13px; line-height:1.8;">
+                                    <ul class="list-group" style="margin:0; padding-left:18px;">
+                                        <li class="list-group-item mb-2">
+                                            <b>Costo de Tarea:</b> Este valor no se muestra como un
+                                            indicador, si no se utiliza para calcular el <b>Peso de
+                                            las Tareas</b>, su valor proviene dependiendo del origen
+                                            del registro para un <b>Servicio Pendiente</b> el valor
+                                            se toma de las lineas del pendiente el campo <i>Total</i>
+                                            y para un registro de <b>Orden de Venta</b> el valor se
+                                            toma de las lineas de la OV el campo <i>Subtotal</i>,
+                                            teniendo en consideración que es un valor individual por
+                                            cada tarea del registro.</li>
+
+                                        <li class="list-group-item mb-2">
+                                            <b>Costo Total:</b> Este valor no se muestra como un
+                                            indicador, solo es utilizado para calcular el <b>Peso de
+                                            las Tareas</b>, su valor proviene dependiendo del origen
+                                            del registro para un <b>Servicio Pendiente</b> no hay
+                                            campo si no que se suma los totales de cada linea para
+                                            tener el costo total del servicio y para un registro de <b>Orden
+                                            de Venta</b> de igual manera que en pendientes sumando
+                                            los totales de cada linea y asi se obtiene el costo
+                                            total.</li>
+
+                                        <li class="list-group-item mb-2">
+                                            <b>Peso:</b> Este campo define el peso que tendrá las
+                                            actividades de manera individual para el registro global
+                                            sigue la misma función para cada tipo de registro. <b>
+                                            Formula:</b> (Costo de Tarea) / (Costo Total) × 100. </li>
+
+                                        <li class="list-group-item mb-2">
+                                            <b>Progreso Planeado:</b> Porcentaje esperado de una tarea individual, calculado según el tiempo 
+                                            transcurrido entre su fecha de inicio y su fecha fin planificada (Fecha Planeada). 
+                                            Este valor se utiliza como base para el cálculo global del avance planeado.<br></br>
+                                            
+                                            <b>Formula:</b> (Hoy − Inicio) / (Fin Plan − Inicio) × 100.
+                                            Requiere llenar <i>Inicio</i> y <i>Fin Plan</i>. </li>
+
+                                        <li class="list-group-item mb-2">
+                                            <b>Avance Planeado:</b> Porcentaje de avance esperado del registro completo, obtenido al consolidar 
+                                            el progreso planeado de cada tarea según su peso individual. 
+                                            Sirve como referencia para comparar lo planeado contra lo realmente ejecutado.<br></br>
+
+                                            <b>Formula:</b> (Peso de las Tareas x Progreso Planeado) /
+                                            100. </li>
+                                            
+                                        <li class="list-group-item mb-2">
+                                            <b>Avance Físico Real:</b> Avance real ejecutado, conforme a los avances diarios.<br></br>
+                                            <b>Formula:</b> Σ Total Avances / Σ Cantidad
+                                            de las líneas de servicio × 100. </li>
+
+                                        <li class="list-group-item mb-2">
+                                            <b>Avance Facturado:</b> Describe lo facturado conforme a lo que ya se a entregado.<br></br>
+                                            <b>Formula:</b> Σ Facturado de tareas / Total
+                                            del servicio × 100. </li>
+
+                                        <li class="list-group-item mb-2">
+                                            <b>Semáforo:</b>No es un porcentaje ni un cálculo base, sino una interpretación visual del 
+                                            estado del registro según avance y fechas.<br></br>
+                                            <b>Criterio:</b> Verde ≥ Avance Planeado | Ámbar retraso
+                                            &lt;10% | Rojo ≥ 10% o Fecha Vencida. </li>
+                                    </ul>
+                                </div>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_project_control_board_search" model="ir.ui.view">
+        <field name="name">project.control.board.search</field>
+        <field name="model">project.control.board</field>
+        <field name="arch" type="xml">
+            <search string="Buscar Tablero de Proyectos">
+                <field name="name"
+                    filter_domain="['|', ('name', 'ilike', self), ('pending_origin_name', 'ilike', self)]" />
+                <field name="cliente_id" />
+                <field name="supervisor_id" />
+                <field name="pending_state" />
+                <field name="sale_state" />
+                <field name="source" />
+                <field name="company_id" />
+                <field name="disciplina_id" />
+                <field name="priority" />
+                <field name="date_start" />
+                <field name="create_date" />
+                <filter name="group_state" string="Estado" context="{'group_by': 'state'}" />
+                <filter name="group_stage" string="Etapa" context="{'group_by': 'lifecycle_stage'}" />
+                <filter name="group_type" string="Tipo" context="{'group_by': 'source'}" />
+                <filter name="group_company" string="Empresa" context="{'group_by': 'company_id'}" />
+                <filter name="group_priority" string="Prioridad" context="{'group_by': 'priority'}" />
+                <filter name="group_disciplina" string="Disciplina"
+                    context="{'group_by': 'disciplina_id'}" />
+                <separator />
+                <filter name="active_only" string="Activos" domain="[('active', '=', True)]" />
+                <filter name="archived_only" string="Archivados" domain="[('active', '=', False)]" />
+                <separator string="Registros" />
+                <filter name="pending_only" string="Sin OS" domain="[('source', '=', 'pending')]" />
+                <filter name="sale_only" string="Con OS" domain="[('source', '=', 'sale')]" />
+                <separator string="Disciplina" />
+                <field name="disciplina_id" string="Disciplina"
+                    filter_domain="[('disciplina_id', '=', self)]" />
+
+                <!-- Filtros de semáforo -->
+                <separator string="Semáforo" />
+                <filter name="semaforo_verde" string="En tiempo"
+                    domain="[('kanban_color', '=', 'green')]" />
+                <filter name="semaforo_amber" string="Retraso leve"
+                    domain="[('kanban_color', '=', 'amber')]" />
+                <filter name="semaforo_rojo" string="Retraso crítico"
+                    domain="[('kanban_color', '=', 'red')]" />
+                <filter name="semaforo_sin_fecha" string="Sin fecha fin"
+                    domain="[('kanban_color', '=', 'no_date')]" />
+
+                <separator string="Dias al Vencimiento" />
+                <filter name="vencimiento_aunfalta" string="Aun Falta"
+                    domain="[('dias_al_vencimiento', '>', 0)]" />
+                <filter name="vecimiento_hoy" string="Hoy"
+                    domain="[('dias_al_vencimiento', '=', 0)]" />
+                <filter name="vencimiento_vencido" string="Vencido"
+                    domain="[('dias_al_vencimiento', '&lt;', 0)]" />
+                <filter name="sin_fecha_fin" string="Sin fecha compromiso"
+                    domain="[('date_end', '=', False)]" />
+
+                <separator string="Facturación" />
+                <filter name="facturado" string="Facturado" domain="[('avance_facturado', '>', 0)]" />
+                <filter name="no_facturado" string="No facturado"
+                    domain="[('avance_facturado', '=', 0)]" />
+                
+                <separator string="Etapas de la Facturación" />
+                <filter name="sin_cobrar_fac" string="Sin Cobrar" domain="[('invoice_substate_id', '!=', 7)]"/>
+
+                <separator string="Con tarea asociada" />
+                <filter name="con_tarea_aso" string="Con tarea asociada"
+                    domain="[('has_task', '=', True)]" />
+
+                <separator string="Fechas rápidas" />
+                <filter name="fecha_vencida" string="Vencidos"
+                    domain="[('date_end', '&lt;', context_today().strftime('%Y-%m-%d'))]" />
+                <filter name="fecha_hoy" string="Vence hoy"
+                    domain="[('date_end', '=', context_today().strftime('%Y-%m-%d'))]" />
+                <filter name="fecha_manana" string="Vence mañana"
+                    domain="[('date_end', '=', (context_today() + relativedelta(days=1)).strftime('%Y-%m-%d'))]" />
+                <filter name="fecha_semana" string="Próximos 7 días"
+                    domain="[('date_end', '&gt;=', context_today().strftime('%Y-%m-%d')), ('date_end', '&lt;=', (context_today() + relativedelta(days=7)).strftime('%Y-%m-%d'))]" />
+                <filter name="sin_fecha_compromiso" string="Sin fecha compromiso"
+                    domain="[('date_end', '=', False)]" />
+
+                <separator string="Fechas" />
+                <field name="date_start" string="Planeación desde"
+                    filter_domain="[('date_start', '>=', self)]" />
+                <field name="date_start" string="Planeación hasta"
+                    filter_domain="[('date_start', '&lt;=', self)]" />
+                <field name="date_end" string="Fin desde"
+                    filter_domain="[('date_end', '>=', self)]" />
+                <field name="date_end" string="Fin hasta"
+                    filter_domain="[('date_end', '&lt;=', self)]" />
+                <field name="create_date" string="Creación desde"
+                    filter_domain="[('create_date', '>=', self)]" />
+                <field name="create_date" string="Creación hasta"
+                    filter_domain="[('create_date', '&lt;=', self)]" />
+                <separator string="Períodos" />
+                <filter name="date_start_this_year" string="Este año"
+                    domain="['|', '&amp;', ('date_start', '&gt;=', (context_today() + relativedelta(month=1, day=1)).strftime('%Y-%m-%d')), ('date_start', '&lt;', (context_today() + relativedelta(years=1, month=1, day=1)).strftime('%Y-%m-%d')), '&amp;', ('create_date', '&gt;=', (context_today() + relativedelta(month=1, day=1)).strftime('%Y-%m-%d')), ('create_date', '&lt;', (context_today() + relativedelta(years=1, month=1, day=1)).strftime('%Y-%m-%d'))]" />
+                <filter name="date_start_this_month" string="Este mes"
+                    domain="['|', '&amp;', ('date_start', '&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d')), ('date_start', '&lt;', (context_today() + relativedelta(months=1, day=1)).strftime('%Y-%m-%d')), '&amp;', ('create_date', '&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d')), ('create_date', '&lt;', (context_today() + relativedelta(months=1, day=1)).strftime('%Y-%m-%d'))]" />
+                <filter name="date_start_this_week" string="Esta semana"
+                    domain="['|', '&amp;', ('date_start', '&gt;=', (context_today() + relativedelta(weeks=-1, days=1, weekday=0)).strftime('%Y-%m-%d')), ('date_start', '&lt;', (context_today() + relativedelta(days=1, weekday=0)).strftime('%Y-%m-%d')), '&amp;', ('create_date', '&gt;=', (context_today() + relativedelta(weeks=-1, days=1, weekday=0)).strftime('%Y-%m-%d')), ('create_date', '&lt;', (context_today() + relativedelta(days=1, weekday=0)).strftime('%Y-%m-%d'))]" />
+                <separator string="Estados Pendiente" />
+                <filter name="pending_state_draft" string="P-Borrador"
+                    domain="[('pending_state', '=', 'draft')]" />
+                <filter name="pending_state_pending" string="P-Pendiente"
+                    domain="[('pending_state', '=', 'pending')]" />
+                <filter name="pending_state_assigned" string="P-Asignada"
+                    domain="[('pending_state', '=', 'assigned')]" />
+                <filter name="pending_state_canceled" string="P-Cancelada"
+                    domain="[('pending_state', '=', 'canceled')]" />
+                <separator string="Estados Orden" />
+                <filter name="sale_state_draft" string="OS-Borrador"
+                    domain="[('sale_state', '=', 'draft')]" />
+                <filter name="sale_state_sent" string="OS-Cotización enviada"
+                    domain="[('sale_state', '=', 'sent')]" />
+                <filter name="sale_state_sale" string="OS-Venta confirmada"
+                    domain="[('sale_state', '=', 'sale')]" />
+                <filter name="sale_state_done" string="OS-Hecha"
+                    domain="[('sale_state', '=', 'done')]" />
+                <filter name="sale_state_cancel" string="OS-Cancelada"
+                    domain="[('sale_state', '=', 'cancel')]" />
+                <separator string="Prioridades" />
+                <filter name="priority_normal" string="Normal" domain="[('priority', '=', '0')]" />
+                <filter name="priority_medium" string="Media" domain="[('priority', '=', '1')]" />
+                <filter name="priority_high" string="Alta" domain="[('priority', '=', '2')]" />
+                <filter name="priority_urgent" string="Urgente" domain="[('priority', '=', '3')]" />
+                <searchpanel>
+                    <field name="source" string="Registros" select="multi" enable_counters="1"/>
+                    <field name="kanban_color" string="Semáforo" select="multi" enable_counters="1" />
+                    <field name="disciplina_id" string="Disciplina" select="multi" enable_counters="1" />
+                    <field name="pending_state" string="Estado PEND" select="multi" enable_counters="1" />
+                    <field name="sale_state" string="Estado OS" select="multi" enable_counters="1" />
+                    <field name="cliente_id" string="Cliente" icon="fa-building" select="multi" enable_counters="1" />
+                    <field name="company_id" string="Empresa" icon="fa-industry" select="multi" enable_counters="1" />
+                    <field name="priority" string="Prioridad" icon="fa-flag" select="multi" enable_counters="1" />
+                    <field name="invoice_substate_id" string="Estado Facturación" icon="fa-solid fa-file" select="multi" enable_counters="1" />
+                </searchpanel>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_project_control_board_kanban" model="ir.ui.view">
+        <field name="name">project.control.board.kanban</field>
+        <field name="model">project.control.board</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="lifecycle_stage" class="o_kanban_view" quick_create="false"
+                default_order="date_start desc">
+                <style>
+                    .o_kanban_group {
+                    min-width: 420px !important;
+                    width: 420px !important;
+                    margin-right: 15px !important;
+                    }
+                    .o_kanban_view {
+                    display: flex !important;
+                    flex-direction: row !important;
+                    overflow-x: auto !important;
+                    }
+                </style>
+                <field name="name" />
+                <field name="source" />
+                <field name="pending_id" />
+                <field name="sale_id" />
+                <field name="cliente_id" />
+                <field name="disciplina_id" />
+                <field name="supervisor_id" />
+                <field name="company_id" />
+                <field name="priority" />
+                <field name="date_start" />
+                <field name="date_end" />
+                <field name="date_end_actual" />
+                <field name="currency_id" />
+                <field name="dias_al_vencimiento" />
+                <field name="vencimiento_label" />
+                <field name="total_amount" />
+                <field name="invoice_move_id" />
+                <field name="invoice_substate_id" />
+                <field name="invoice_count" />
+                <field name="qty_total" />
+                <field name="task_count" />
+                <field name="task_done_count" />
+                <field name="avance_planeado" />
+                <field name="avance" />
+                <field name="avance_facturado" />
+                <field name="state" />
+                <field name="kanban_color" />
+                <field name="lifecycle_stage" />
+                <templates>
+                    <t t-name="kanban-box">
+                        <t t-set="priority_raw" t-value="record.priority.raw_value" />
+                        <t t-set="priority_badge_class"
+                            t-value="priority_raw == '3' ? 'bg-danger text-white' : (priority_raw == '2' ? 'bg-warning text-white' : (priority_raw == '1' ? 'bg-success text-white' : 'bg-dark text-white'))" />
+                        <!-- Semáforo 'no_date' detectado para estilos -->
+                        <t t-set="has_no_date" t-value="record.kanban_color.raw_value == 'no_date'" />
+                        <!-- Resalte por borde rojo si está vencido para conservar legibilidad -->
+                        <t t-set="is_vencido" t-value="record.dias_al_vencimiento.raw_value !== null &amp;&amp; record.dias_al_vencimiento.raw_value &lt; 0" />
+                        <t t-set="card_bg" t-value="'#ffffff'" />
+                        <div
+                            t-attf-style="overflow: visible !important; margin-bottom: 16px !important; border: #{is_vencido ? '3px solid #B33D22' : '1px solid #dee2e6'}; border-top: #{record.source.raw_value == 'sale' ? '4px solid #0D6EFD' : '4px solid #F0DF43'}; background: #{card_bg};"
+                            class="oe_kanban_card oe_kanban_global_click pcb-tooltip-card p-0 d-flex flex-column shadow-sm h-100 rounded-3">
+
+                            <!-- Cabecera: nombre, estado, prioridad y semáforo -->
+                            <div
+                                t-attf-class="p-1 border-bottom d-flex align-items-center justify-content-between #{record.source.raw_value == 'sale' ? 'bg-primary-subtle' : 'bg-success-subtle'}">
+                                <div class="d-flex align-items-center gap-2 flex-grow-1 me-2"
+                                    style="min-width: 0;">
+                                    <div
+                                        t-attf-class="rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0 #{record.source.raw_value == 'sale' ? 'bg-primary text-white' : 'bg-success text-white'}"
+                                        style="width: 22px; height: 22px; margin-top: 1px;">
+                                        <t t-if="record.source.raw_value == 'sale'">
+                                            <i class="fa fa-shopping-cart" />
+                                        </t>
+                                        <t t-else="">
+                                            <i class="fa fa-wrench" />
+                                        </t>
+                                    </div>
+                                    <a name="action_open_origin" type="object"
+                                        class="o_text_overflow text-dark fw-bold text-truncate text-decoration-none"
+                                        style="max-width: 100%; font-size: 12px; line-height: 1.1;"
+                                        t-att-title="record.source.raw_value == 'sale' ? 'Abrir orden de venta origen' : 'Abrir servicio pendiente origen'">
+                                        <field name="name" />
+                                    </a>
+                                </div>
+                                <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                                    <span class="fw-bold text-dark ms-1 icon-tooltip"
+                                        aria-label="Estado actual del documento origen dentro de su flujo operativo o comercial."
+                                        style="font-size: 11px;">
+                                        <field name="state" />
+                                    </span>
+                                    <span class="icon-tooltip"
+                                        aria-label="Nivel de prioridad asignado al registro para su atención."
+                                        t-attf-class="badge rounded-pill ms-1 #{priority_badge_class}"
+                                        style="font-size: 9px;">
+                                        <t t-esc="record.priority.value" />
+                                    </span>
+                                    <!-- Semáforo: oculto si no hay fecha -->
+                                    <t t-if="!has_no_date">
+                                        <div class="d-flex gap-1 rounded-pill p-1 shadow-sm icon-tooltip"
+                                            aria-label="Semáforo de seguimiento. Verde: en tiempo. Amarillo: desviación menor. Rojo: atraso crítico."
+                                            style="background-color: #343a40 !important;">
+                                            <span
+                                                t-attf-class="rounded-circle d-inline-block #{record.kanban_color.raw_value == 'red' ? 'bg-danger shadow' : 'bg-secondary opacity-25'}"
+                                                style="width: 8px; height: 8px;" />
+                                            <span
+                                                t-attf-class="rounded-circle d-inline-block #{record.kanban_color.raw_value == 'amber' ? 'bg-warning shadow' : 'bg-secondary opacity-25'}"
+                                                style="width: 8px; height: 8px;" />
+                                            <span
+                                                t-attf-class="rounded-circle d-inline-block #{record.kanban_color.raw_value == 'green' ? 'bg-success shadow' : 'bg-secondary opacity-25'}"
+                                                style="width: 8px; height: 8px;" />
+                                        </div>
+                                        <div class="ms-1">
+                                            <t t-if="record.kanban_color.raw_value == 'red'">
+                                                <i class="fa fa-times text-danger fs-6"
+                                                    title="Retraso crítico o fecha vencida." />
+                                            </t>
+                                            <t t-if="record.kanban_color.raw_value == 'amber'">
+                                                <i
+                                                    class="fa fa-exclamation-triangle text-warning fs-6"
+                                                    title="Retraso menor al 10%." />
+                                            </t>
+                                            <t t-if="record.kanban_color.raw_value == 'green'">
+                                                <i class="fa fa-check text-success fs-6"
+                                                    title="En tiempo." />
+                                            </t>
+                                        </div>
+                                    </t>
+                                    <!-- MEJORA 7: Alerta visible cuando no hay fecha fin -->
+                                    <t t-if="has_no_date">
+                                        <span class="badge bg-warning text-dark ms-1 icon-tooltip"
+                                            aria-label="No hay fecha compromiso capturada. Por eso el semáforo no puede calcularse."
+                                            style="font-size: 9px;">
+                                            <i class="fa fa-question-circle me-1" />Sin fecha </span>
+                                    </t>
+                                </div>
+                            </div>
+
+                            <!-- Fechas -->
+                            <div
+                                class="p-1 border-bottom d-flex align-items-center justify-content-between text-muted text-nowrap"
+                                style="font-size: 10px;">
+                                <div class="d-flex align-items-center gap-1"
+                                    style="flex: 1; justify-content: flex-start;">
+                                    <i class="fa fa-calendar-o" />
+                                    <span class="icon-tooltip"
+                                        aria-label="Fecha de inicio base del servicio o de la orden. Se usa junto con la fecha fin para calcular avance planeado y etapa."
+                                        style="font-size: 10px; color: inherit;">
+                                        Inicio:
+                                    </span>
+                                    <b class="text-dark">
+                                        <field name="date_start" widget="datetime" />
+                                    </b>
+                                </div>
+                                <div class="text-center" style="flex: 0 0 auto;">
+                                    <span class="text-black-50">|</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-1"
+                                    style="flex: 1; justify-content: flex-end;">
+                                    <span class="icon-tooltip tooltip-edge-right"
+                                        aria-label="Fecha compromiso o fin planeado. Si no existe, el semáforo no puede calcularse y el registro queda marcado como sin planeación."
+                                        style="font-size: 10px; color: inherit;">
+                                        Fin Plan:
+                                    </span>
+                                    <!-- MEJORA 7: aviso inline si no hay fecha fin -->
+                                    <t t-if="record.date_end.raw_value">
+                                        <b class="text-dark">
+                                            <field name="date_end" widget="datetime" />
+                                        </b>
+                                    </t>
+                                    <t t-else="">
+                                        <b class="text-warning">
+                                            <i class="fa fa-exclamation-triangle me-1" />No definida </b>
+                                    </t>
+                                </div>
+                            </div>
+
+                            <!-- Retraso y monto -->
+                            <div
+                                class="p-1 border-bottom d-flex align-items-center justify-content-between text-muted text-nowrap"
+                                style="font-size: 10px;">
+                                <div class="d-flex align-items-center gap-1"
+                                    style="flex: 1; justify-content: flex-start;">
+                                    <span class="icon-tooltip tooltip-edge-left"
+                                        aria-label="Resume el vencimiento respecto a la fecha fin planeada. Si el avance real llega a 100%, el registro se considera completado."
+                                        style="font-size: 10px; color: inherit;">
+                                        Estado:
+                                    </span>
+                                    <t t-if="record.avance.raw_value &gt;= 100">
+                                        <b class="text-success">
+                                            <t t-esc="record.vencimiento_label.raw_value" />
+                                        </b>
+                                    </t>
+                                    <t t-elif="has_no_date">
+                                        <b class="text-warning">
+                                            <t t-esc="record.vencimiento_label.raw_value" />
+                                        </b>
+                                    </t>
+                                    <t t-elif="record.dias_al_vencimiento.raw_value &lt; 0">
+                                        <b class="text-danger">
+                                            <t t-esc="record.vencimiento_label.raw_value" />
+                                        </b>
+                                    </t>
+                                    <t t-elif="record.dias_al_vencimiento.raw_value > 0">
+                                        <b class="text-success">
+                                            <t t-esc="record.vencimiento_label.raw_value" />
+                                        </b>
+                                    </t>
+                                    <t t-elif="record.dias_al_vencimiento.raw_value == 0">
+                                        <b class="text-dark">
+                                            <t t-esc="record.vencimiento_label.raw_value" />
+                                        </b>
+                                    </t>
+                                </div>
+                                <div class="text-center" style="flex: 0 0 auto;">
+                                    <span class="text-black-50">|</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-1"
+                                    style="flex: 1; justify-content: flex-end;">
+                                    <i class="fa fa-money text-muted" />
+                                    <span class="icon-tooltip tooltip-edge-right"
+                                        aria-label="Monto económico del registro. En órdenes de venta toma el subtotal sin impuestos; en pendientes usa el total calculado del servicio."
+                                        style="font-size: 10px; color: inherit;">
+                                        Monto:
+                                    </span>
+                                    <b class="text-dark">
+                                        <field name="total_amount" widget="monetary"
+                                            options="{'currency_field': 'currency_id'}" />
+                                    </b>
+                                </div>
+                            </div>
+
+                            <!-- Avances y datos del proyecto -->
+                            <div class="row g-0 flex-grow-1 border-bottom align-items-stretch">
+                                <div
+                                    class="col-6 p-1 border-end d-flex flex-column justify-content-center gap-1">
+                                    <span class="icon-tooltip text-muted"
+                                        aria-label="Planeado: progreso esperado por fechas. Actual: avance real reportado en tareas. Facturado: porcentaje ya respaldado por facturación."
+                                        style="font-size: 10px;">
+                                        Avances:
+                                    </span>
+                                    <div class="d-flex flex-column gap-1" style="font-size: 10px;">
+                                        <div>
+                                            <div class="d-flex justify-content-between gap-1">
+                                                <span class="text-muted icon-tooltip"
+                                                    aria-label="Porcentaje esperado según la planeación y las fechas configuradas.">
+                                                    Planeado:
+                                                </span>
+                                                <b class="text-dark">
+                                                    <t
+                                                        t-esc="Math.round(record.avance_planeado.raw_value || 0)" />
+                                                    % </b>
+                                            </div>
+                                            <div class="progress mt-1" style="height: 4px;">
+                                                <div class="progress-bar bg-success"
+                                                    role="progressbar"
+                                                    t-attf-style="width: #{Math.max(0, Math.min(100, record.avance_planeado.raw_value || 0))}%" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="d-flex justify-content-between gap-1">
+                                                <span class="text-muted icon-tooltip"
+                                                    aria-label="Porcentaje real reportado por el avance operativo de las tareas vinculadas.">
+                                                    Actual:
+                                                </span>
+                                                <b class="text-dark">
+                                                    <t
+                                                        t-esc="Math.floor(record.avance.raw_value || 0)" />
+                                                    % </b>
+                                            </div>
+                                            <div class="progress mt-1" style="height: 4px;">
+                                                <div
+                                                    t-attf-class="progress-bar #{has_no_date ? 'bg-secondary' : (record.kanban_color.raw_value == 'red' ? 'bg-danger' : (record.kanban_color.raw_value == 'amber' ? 'bg-warning' : 'bg-success'))}"
+                                                    role="progressbar"
+                                                    t-attf-style="width: #{Math.max(0, Math.min(100, record.avance.raw_value || 0))}%" />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="d-flex justify-content-between gap-1">
+                                                <span class="text-muted icon-tooltip"
+                                                    aria-label="Porcentaje del trabajo que ya cuenta con respaldo de facturación.">
+                                                    Facturado:
+                                                </span>
+                                                <b class="text-dark">
+                                                    <t
+                                                        t-esc="Math.round(record.avance_facturado.raw_value || 0)" />
+                                                    % </b>
+                                            </div>
+                                            <div class="progress mt-1" style="height: 4px;">
+                                                <div class="progress-bar bg-success"
+                                                    role="progressbar"
+                                                    t-attf-style="width: #{Math.max(0, Math.min(100, record.avance_facturado.raw_value || 0))}%" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div
+                                    class="col-6 p-1 d-flex flex-column justify-content-between gap-1">
+                                    <div>
+                                        <span class="icon-tooltip text-muted d-block"
+                                            aria-label="Cliente asociado al servicio pendiente o a la orden de venta."
+                                            style="font-size: 9px;">
+                                            Cliente:
+                                        </span>
+                                        <b class="text-dark text-wrap d-block"
+                                            style="line-height: 1.1; font-size: 9px;"
+                                            t-att-title="record.cliente_id.value">
+                                            <field name="cliente_id" />
+                                        </b>
+                                    </div>
+                                    <div>
+                                        <span class="icon-tooltip text-muted d-block"
+                                            aria-label="Responsable de seguimiento operativo asignado al registro."
+                                            style="font-size: 9px;">
+                                            Supervisor:
+                                        </span>
+                                        <b class="text-dark text-wrap d-block"
+                                            style="line-height: 1.1; font-size: 9px;">
+                                            <field name="supervisor_id" />
+                                        </b>
+                                    </div>
+                                    <!-- MEJORA 1: disciplina visible en tarjetas (sale mostrará
+                                    valor si existe) -->
+                                    <div>
+                                        <span class="icon-tooltip text-muted d-block"
+                                            aria-label="Clasificación técnica o disciplina del trabajo. Puede no existir en algunos registros."
+                                            style="font-size: 9px;">
+                                            Disciplina:
+                                        </span>
+                                        <t t-if="record.disciplina_id.raw_value">
+                                            <b class="text-dark text-wrap d-block"
+                                                style="line-height: 1.1; font-size: 9px;">
+                                                <field name="disciplina_id" />
+                                            </b>
+                                        </t>
+                                        <t t-else="">
+                                            <span class="text-muted fst-italic"
+                                                style="font-size: 9px;">No aplica</span>
+                                        </t>
+                                    </div>
+                                    <div>
+                                        <span class="icon-tooltip text-muted d-block"
+                                            aria-label="Compañía a la que pertenece el registro."
+                                            style="font-size: 9px;">
+                                            Empresa:
+                                        </span>
+                                        <b class="text-dark text-wrap d-block"
+                                            style="line-height: 1.1; font-size: 9px;">
+                                            <field name="company_id" />
+                                        </b>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Pie: seguimiento de factura y tareas -->
+                            <div
+                                class="p-1 border-bottom d-flex align-items-center justify-content-between text-muted text-nowrap"
+                                style="font-size: 10px;">
+                                <div class="d-flex align-items-center gap-1"
+                                    style="flex: 1; justify-content: flex-start; min-width: 0;">
+                                    <div class="d-flex align-items-center gap-1">
+                                        <i class="fa fa-file-text-o text-muted" />
+                                        <span class="icon-tooltip text-muted"
+                                            aria-label="Muestra el seguimiento de la factura más representativa. Si hay varias, el número entre paréntesis indica cuántas existen."
+                                            style="font-size: 10px;">
+                                            Factura:
+                                        </span>
+                                    </div>
+                                    <t t-if="record.invoice_move_id.raw_value">
+                                        <b class="text-dark text-truncate"
+                                            t-att-title="record.invoice_substate_id.value || record.invoice_move_id.value"
+                                            style="max-width: 155px;">
+                                            <t t-esc="record.invoice_substate_id.value || 'Sin seguimiento'" />
+                                        </b>
+                                        <t t-if="(record.invoice_count.raw_value || 0) &gt; 1">
+                                            <span class="text-muted">
+                                                <t t-esc="'(' + record.invoice_count.raw_value + ')'" />
+                                            </span>
+                                        </t>
+                                    </t>
+                                    <t t-else="">
+                                        <span class="text-muted fst-italic">
+                                            <t t-esc="record.source.raw_value == 'pending' ? 'Sin OS' : 'Sin Factura'" />
+                                        </span>
+                                    </t>
+                                </div>
+                                <div class="text-center" style="flex: 0 0 auto;">
+                                    <span class="text-black-50">|</span>
+                                </div>
+                                <div class="d-flex align-items-center gap-1"
+                                    style="flex: 1; justify-content: flex-end;">
+                                    <div class="d-flex align-items-center gap-1">
+                                        <i class="fa fa-tasks text-muted" />
+                                        <span class="icon-tooltip text-muted tooltip-edge-right"
+                                            aria-label="Relación entre tareas terminadas y tareas totales vinculadas al servicio u orden."
+                                            style="font-size: 10px;">
+                                            Tareas:
+                                        </span>
+                                    </div>
+                                    <b class="text-dark">
+                                        <t t-esc="record.task_done_count.raw_value || 0" />/<t
+                                            t-esc="record.task_count.raw_value || 0" />
+                                    </b>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="action_project_control_board" model="ir.actions.act_window">
+        <field name="name">Gestión Proyectos</field>
+        <field name="res_model">project.control.board</field>
+        <field name='view_mode'>kanban,tree,form</field>
+        <field name='view_id' ref='view_project_control_board_kanban' />
+        <field name='search_view_id' ref='view_project_control_board_search' />
+        <field name="context">{'create': False, 'delete': False, 'active_test': True,
+            'search_default_date_start_this_year': 1,
+            'search_default_sin_cobrar_fac':1,
+            }</field> <!--'searchpanel_default_source': ['pending']-->
+    </record>
+    </data>
+</odoo>
