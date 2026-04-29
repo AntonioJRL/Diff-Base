@@ -8,6 +8,7 @@ from . import sale_order
 from . import project_tags
 from . import supervisor
 from . import pending_service
+from . import pending_merge_request # Logica de Fusion Pendientes
 from . import employee
 from . import asignar_avances_project_wizard
 from . import hr_employee

@@ -223,7 +223,6 @@
                 <field name="name"/>
                 <field name="sequence_id"/>
                 <field name="sequence_generated"/>
-                <field name="company_id"/>
             </tree>
         </field>
     </record>
@@ -243,7 +242,6 @@
                         <field name="name"/>
                         <field name="sequence_id"/>
                         <field name="sequence_generated" invisible="1"/>
-                        <field name="company_id"/>
                     </group>
                     
                 </sheet>

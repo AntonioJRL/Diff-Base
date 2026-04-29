@@ -11,7 +11,6 @@
         'security/ir.model.access.csv',
         "data/security_project_task_type_rule.xml",
         "data/aprobacion_mail_activity_data.xml",
-        "data/pending_service_server_actions.xml",
 
         # 2. Data (Reference data used in views)
         "data/project_task_type_data.xml",
@@ -31,11 +30,14 @@
         "views/wizard_rechazado_task_views.xml",
         "views/asignar_avances_project_wizard_views.xml",
         "wizard/pending_service_wizard.xml",
+        ########Funcionamiento Fusion Pendientes############
+        "wizard/pending_merge_request_selector_views.xml",
         "wizard/fusion_servicios_pendientes_views.xml",
+        "views/pending_merge_request_views.xml",
+        #####################################################
 
         # 4. Views (Main Models & Actions)
         # These define actions that might be used in menus later
-        'views/project_control_board_views.xml',
         'views/project_sub_update_views.xml',
         'views/supervisor_area_views.xml',
         'views/pending_services.xml',

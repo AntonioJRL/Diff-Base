@@ -8,6 +8,22 @@ class FusionServiciosPendientes(models.TransientModel):
     _name = 'fusion.servicios.pendientes'
     _description = 'Fusión de Servicios Pendientes'
 
+    pending_merge_request_id = fields.Many2one(
+        'pending.merge.request',
+        string='Solicitud de Operación',
+        readonly=True,
+    )
+    from_merge_request = fields.Boolean(
+        string='Desde Solicitud',
+        compute='_compute_from_merge_request',
+    )
+    direct_merge_locked = fields.Boolean(
+        string='Fusión Directa Bloqueada',
+    )
+    operation_locked = fields.Boolean(
+        string='Operación Bloqueada',
+        compute='_compute_operation_locked',
+    )
     proceso = fields.Selection(
         selection=[
             ('reasignacion', 'Reasignacion'),
@@ -18,13 +34,12 @@ class FusionServiciosPendientes(models.TransientModel):
         required=True,
     )
 
-    # Modo
-    modo_fusion = fields.Selection(
+    modo_reasignacion = fields.Selection(
         selection=[
             ('todo', 'Mover todas las líneas a un destino'),
             ('por_linea', 'Asignar destino línea por línea'),
         ],
-        string="Modo de Reasignacion",
+        string="Modo de Reasignación",
         default='todo',
         required=True,
     )
@@ -139,6 +154,32 @@ class FusionServiciosPendientes(models.TransientModel):
         string='Estado de Validación',
     )
 
+    @api.depends('pending_merge_request_id')
+    def _compute_from_merge_request(self):
+        for record in self:
+            record.from_merge_request = bool(record.pending_merge_request_id)
+
+    @api.depends('pending_merge_request_id', 'direct_merge_locked')
+    def _compute_operation_locked(self):
+        for record in self:
+            record.operation_locked = bool(record.pending_merge_request_id or record.direct_merge_locked)
+
+    def write(self, vals):
+        locked_fields = {'proceso', 'modo_reasignacion', 'servicio_o', 'servicio_d'}
+        if locked_fields.intersection(vals):
+            for wizard in self.filtered(lambda item: item.pending_merge_request_id or item.direct_merge_locked):
+                request = wizard.pending_merge_request_id
+                for field_name in locked_fields.intersection(vals):
+                    new_value = vals[field_name]
+                    allowed_value = request[field_name] if request else wizard[field_name]
+                    if hasattr(allowed_value, 'id'):
+                        allowed_value = allowed_value.id
+                    if new_value != allowed_value:
+                        raise ValidationError(_(
+                            "No puedes modificar proceso, origen ni destino porque esta operación ya fue definida."
+                        ))
+        return super().write(vals)
+
     # Toma el valor del cotexto pasado por el button para asignar el valor del servicio origen por defecto.
     @api.model
     def default_get(self, fields_list):
@@ -148,8 +189,22 @@ class FusionServiciosPendientes(models.TransientModel):
             res['servicio_o'] = active_id
         return res
 
+    def _action_open_from_request(self):
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Revisar y ejecutar fusión'),
+            'res_model': self._name,
+            'res_id': self.id,
+            'view_mode': 'form',
+            'view_id': self.env.ref(
+                'project_modificaciones.fusion_servicios_pendientes_view_form'
+            ).id,
+            'target': 'new',
+        }
+
     # Poblar líneas al cambiar origen o modo 
-    @api.onchange('proceso', 'servicio_o', 'servicio_d', 'modo_fusion')
+    @api.onchange('proceso', 'servicio_o', 'servicio_d', 'modo_reasignacion')
     def _onchange_poblar_lineas_seleccion(self):
         if self.proceso == 'fusion' and self.servicio_o:
             lineas_destino_actuales = {
@@ -164,7 +219,7 @@ class FusionServiciosPendientes(models.TransientModel):
                 })
                 for linea in self.servicio_o.service_line_ids
             ]
-        elif self.modo_fusion == 'por_linea' and self.servicio_o:
+        elif self.modo_reasignacion == 'por_linea' and self.servicio_o:
             destinos_actuales = {
                 linea.linea_id.id: linea.servicio_destino.id
                 for linea in self.lineas_seleccion
@@ -177,14 +232,14 @@ class FusionServiciosPendientes(models.TransientModel):
                 })
                 for linea in self.servicio_o.service_line_ids
             ]
-        elif self.modo_fusion == 'todo':
+        elif self.modo_reasignacion == 'todo':
             self.lineas_seleccion = [(5, 0, 0)]
 
     # Pre-validación visual
     is_fusionable = fields.Boolean(compute="_compute_is_fusionable")
 
     @api.depends(
-        'proceso', 'servicio_o', 'servicio_d', 'modo_fusion',
+        'proceso', 'servicio_o', 'servicio_d', 'modo_reasignacion',
         'servicio_o.state', 'servicio_o.sale_order_id', 'servicio_o.service_line_ids',
         'servicio_d.state', 'servicio_d.sale_order_id',
         'lineas_seleccion', 'lineas_seleccion.linea_id', 'lineas_seleccion.servicio_destino', 'lineas_seleccion.linea_destino_id',
@@ -195,7 +250,7 @@ class FusionServiciosPendientes(models.TransientModel):
             record.is_fusionable = not bool(record._obtener_errores_validacion())
 
     @api.depends(
-        'proceso', 'servicio_o', 'servicio_d', 'modo_fusion',
+        'proceso', 'servicio_o', 'servicio_d', 'modo_reasignacion',
         'servicio_o.service_line_ids', 'servicio_o.service_line_ids.task_id',
         'lineas_seleccion', 'lineas_seleccion.linea_id', 'lineas_seleccion.servicio_destino', 'lineas_seleccion.linea_destino_id',
     )
@@ -209,11 +264,11 @@ class FusionServiciosPendientes(models.TransientModel):
             else:
                 lineas_a_mover = record.lineas_seleccion.filtered(
                     lambda l: l.servicio_destino and l.linea_id
-                ).mapped('linea_id') if record.modo_fusion == 'por_linea' else lineas_origen
+                ).mapped('linea_id') if record.modo_reasignacion == 'por_linea' else lineas_origen
             record.total_lineas_origen = len(lineas_origen)
             record.total_lineas_a_mover = len(lineas_a_mover)
             record.total_tareas_afectadas = len(lineas_a_mover.mapped('task_id').filtered(lambda t: t))
-            if record.servicio_o and (record.modo_fusion == 'por_linea' or record.proceso == 'fusion'):
+            if record.servicio_o and (record.modo_reasignacion == 'por_linea' or record.proceso == 'fusion'):
                 record.total_avances_afectados = self.env['project.sub.update'].search_count([
                     ('pending_service_id', '=', record.servicio_o.id),
                     ('pending_service_line_id', 'in', lineas_a_mover.ids),
@@ -226,14 +281,14 @@ class FusionServiciosPendientes(models.TransientModel):
             if record.proceso == 'fusion':
                 destinos = record.lineas_seleccion.mapped('linea_destino_id.service_id').filtered(lambda d: d)
                 record.total_destinos = len(destinos)
-            elif record.modo_fusion == 'todo':
+            elif record.modo_reasignacion == 'todo':
                 record.total_destinos = 1 if record.servicio_d else 0
             else:
                 destinos = record.lineas_seleccion.mapped('servicio_destino').filtered(lambda d: d)
                 record.total_destinos = len(destinos)
 
     @api.depends(
-        'proceso', 'servicio_o', 'servicio_d', 'modo_fusion',
+        'proceso', 'servicio_o', 'servicio_d', 'modo_reasignacion',
         'servicio_o.state', 'servicio_o.sale_order_id', 'servicio_o.service_line_ids',
         'servicio_d.state', 'servicio_d.sale_order_id',
         'lineas_seleccion', 'lineas_seleccion.linea_id', 'lineas_seleccion.servicio_destino', 'lineas_seleccion.linea_destino_id',
@@ -288,7 +343,8 @@ class FusionServiciosPendientes(models.TransientModel):
                 if not lineas_a_fusionar:
                     errores.append(
                         "Debes seleccionar al menos una línea destino para fusionar. "
-                        "Si ya la elegiste, revisa que pertenezca al servicio destino seleccionado."
+                        "El wizard la preselecciona cuando encuentra una única línea compatible por producto; "
+                        "si hay varias opciones, el fusionador debe elegirla manualmente."
                     )
                 lineas_invalidas = self.lineas_seleccion.filtered(
                     lambda l: not l.linea_id or l.linea_id.service_id != origen
@@ -297,12 +353,12 @@ class FusionServiciosPendientes(models.TransientModel):
                     errores.append("Existen líneas que no pertenecen al servicio origen seleccionado.")
                 for seleccion in lineas_a_fusionar:
                     errores.extend(self._validar_linea_destino_fusion(seleccion))
-        elif self.modo_fusion == 'todo':
+        elif self.modo_reasignacion == 'todo':
             if not self.servicio_d:
                 errores.append("Debes seleccionar un servicio destino.")
             else:
                 errores.extend(self._validar_destino(self.servicio_d))
-        elif self.modo_fusion == 'por_linea':
+        elif self.modo_reasignacion == 'por_linea':
             if not self.lineas_seleccion:
                 errores.append("No hay líneas cargadas para distribuir.")
             else:
@@ -380,8 +436,8 @@ class FusionServiciosPendientes(models.TransientModel):
             )
         return errores
 
-    # Validaciones
-    @api.constrains('servicio_o', 'servicio_d')
+    # Validación final. No debe ejecutarse como constraint al abrir el wizard,
+    # porque el fusionador aún puede necesitar elegir líneas destino.
     def _validaciones_pre_fusion(self):
         for record in self:
             errores = record._obtener_errores_validacion()
@@ -392,13 +448,30 @@ class FusionServiciosPendientes(models.TransientModel):
     def fusionar_servicios(self):
         self.ensure_one()
         self._validaciones_pre_fusion()
+        request = self.pending_merge_request_id
+        if request:
+            if request.state != 'submitted':
+                raise ValidationError(
+                    _("La solicitud vinculada debe estar en aprobación para ejecutar el proceso.")
+                )
+            request._check_approver()
+            if (
+                self.proceso != request.proceso
+                or self.modo_reasignacion != request.modo_reasignacion
+                or self.servicio_o != request.servicio_o
+                or self.servicio_d != request.servicio_d
+            ):
+                raise ValidationError(_(
+                    "El proceso, origen y destino deben coincidir con la solicitud aprobada."
+                ))
         mensaje_exito = False
 
         if self.proceso == 'fusion':
             resumen = self._fusionar_lineas()
             self._registrar_chatter_fusion(resumen)
             mensaje_exito = self._mensaje_exito_fusion_resumen(resumen)
-        elif self.modo_fusion == 'todo':
+            self._create_operation_logs(resumen)
+        elif self.modo_reasignacion == 'todo':
             if not self.servicio_d:
                 raise ValidationError(
                 "En modo 'todo' debes seleccionar un servicio destino."
@@ -406,13 +479,17 @@ class FusionServiciosPendientes(models.TransientModel):
             detalle_fusion = self._mover_lineas_al_destino()
             self._registrar_chatter(detalle_fusion)
             mensaje_exito = self._mensaje_exito_reasignacion_todo(detalle_fusion)
+            self._create_operation_logs(detalle_fusion)
 
-        elif self.modo_fusion == 'por_linea':
+        elif self.modo_reasignacion == 'por_linea':
             resumen = self._mover_lineas_por_destino()
             self._registrar_chatter_por_linea(resumen)
             mensaje_exito = self._mensaje_exito_reasignacion_por_linea(resumen)
+            self._create_operation_logs(resumen)
 
         self._archivar_origen()
+        if request:
+            request._mark_approved_after_wizard_execution()
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',
@@ -424,6 +501,50 @@ class FusionServiciosPendientes(models.TransientModel):
                 'next': {'type': 'ir.actions.act_window_close'},
             }
         }
+
+    def _create_operation_logs(self, operation_result):
+        self.ensure_one()
+        if not operation_result:
+            return False
+
+        entries = []
+        if self.proceso == 'fusion' or self.modo_reasignacion == 'por_linea':
+            entries = operation_result.items()
+        elif self.modo_reasignacion == 'todo':
+            entries = [(self.servicio_d, operation_result)]
+
+        request = self.pending_merge_request_id
+        log_model = self.env['pending.service.operation.log']
+        for destino, info in entries:
+            if not destino:
+                continue
+            log_model.create({
+                'operation_type': self.proceso,
+                'reassignment_mode': self.modo_reasignacion if self.proceso == 'reasignacion' else False,
+                'origin_id': self.servicio_o.id,
+                'destination_id': destino.id,
+                'request_id': request.id if request else False,
+                'user_id': self.env.user.id,
+                'line_count': info.get('cantidad', 0),
+                'note': self._operation_log_note(info),
+            })
+        return True
+
+    def _operation_log_note(self, info):
+        self.ensure_one()
+        if self.proceso == 'fusion':
+            return '\n\n'.join(
+                "Origen: %(origen)s\Destino: %(destino)s\nResultado: %(resultado)s" % {
+                    'origen': item.get('origen'),
+                    'destino': item.get('destino_original') or item.get('destino'),
+                    'resultado': item.get('destino_resultado') or item.get('destino'),
+                }
+                for item in info.get('fusiones', [])
+            )
+        lineas = info.get('lineas')
+        if lineas:
+            return '\n'.join(self._descripcion_linea(linea) for linea in lineas)
+        return False
 
     def _fusionar_lineas(self):
         self.ensure_one()
@@ -468,7 +589,6 @@ class FusionServiciosPendientes(models.TransientModel):
             if avances_linea:
                 avances_linea.write(vals_avance)
 
-            destino.write({'fusion_origen_id': origen.id})
             linea_origen.unlink()
 
             if destino not in resumen:
@@ -479,6 +599,8 @@ class FusionServiciosPendientes(models.TransientModel):
             resumen[destino]['cantidad'] += 1
             resumen[destino]['fusiones'].append({
                 'origen': descripcion_origen,
+                'destino_original': descripcion_destino_original,
+                'destino_resultado': self._descripcion_linea(linea_destino),
                 'destino': "%s -> %s" % (
                     descripcion_destino_original,
                     self._descripcion_linea(linea_destino),
@@ -486,9 +608,6 @@ class FusionServiciosPendientes(models.TransientModel):
                 'detalle_tarea': fusion_tarea_info.get('detalle_tarea'),
             })
 
-        if len(resumen) == 1:
-            destino_unico = next(iter(resumen.keys()))
-            origen.write({'fusion_destino_id': destino_unico.id})
         return resumen
 
     def _fusionar_tarea_en_destino(self, tarea_origen, tarea_destino, linea_destino, destino):
@@ -592,8 +711,6 @@ class FusionServiciosPendientes(models.TransientModel):
         lineas.write({'service_id': destino.id})
         self._reasignar_tareas(tareas, destino)
         self._reasignar_avances(avances, destino)
-        destino.write({'fusion_origen_id': origen.id})
-        origen.write({'fusion_destino_id': destino.id})
         return {
             'cantidad': cantidad,
             'lineas': lineas,
@@ -630,7 +747,7 @@ class FusionServiciosPendientes(models.TransientModel):
             tareas = lineas.mapped('task_id').filtered(lambda t: t)
             lineas.write({'service_id': destino.id})
             self._reasignar_tareas(tareas, destino)
-            destino.write({'fusion_origen_id': origen.id})
+            self._reasignar_avances_por_lineas(lineas, destino)
             if destino not in resumen:
                 resumen[destino] = {
                     'cantidad': 0,
@@ -638,11 +755,6 @@ class FusionServiciosPendientes(models.TransientModel):
                 }
             resumen[destino]['cantidad'] += len(lineas)
             resumen[destino]['lineas'] |= lineas
-
-        # Avances → destino con más líneas
-        destino_principal = max(resumen, key=lambda d: resumen[d]['cantidad'])
-        avances = self.env['project.sub.update'].search([('pending_service_id', '=', origen.id)])
-        self._reasignar_avances(avances, destino_principal)
 
         return resumen
 
@@ -748,6 +860,29 @@ class FusionServiciosPendientes(models.TransientModel):
         self.ensure_one()
         if avances:
             avances.write({'pending_service_id': destino.id})
+
+    def _reasignar_avances_por_lineas(self, lineas, destino):
+        self.ensure_one()
+        if not lineas:
+            return
+
+        avances = self.env['project.sub.update'].search([
+            ('pending_service_line_id', 'in', lineas.ids),
+        ])
+        if not avances:
+            return
+
+        avances.write({'pending_service_id': destino.id})
+
+        for linea in lineas.filtered(lambda item: item.task_id):
+            avances_linea = avances.filtered(lambda avance: avance.pending_service_line_id == linea)
+            if not avances_linea:
+                continue
+
+            vals_avance = {'task_id': linea.task_id.id}
+            if linea.task_id.project_id:
+                vals_avance['project_id'] = linea.task_id.project_id.id
+            avances_linea.write(vals_avance)
 
     # Chatter modo todo
     def _registrar_chatter(self, detalle_fusion):
@@ -931,7 +1066,7 @@ class FusionServiciosPendientes(models.TransientModel):
                     "El origen conserva líneas no fusionadas y permanece activo."
                 ),
             }
-        if self.modo_fusion == 'todo':
+        if self.modo_reasignacion == 'todo':
             return _(
                 "Se movieron %(lineas)s línea(s) al servicio %(destino)s. El origen fue archivado."
             ) % {

@@ -1,29 +1,20 @@
-from odoo import fields, models, api, _
-from datetime import date as _date
-from datetime import datetime
+from odoo import fields, models, api,_
 import logging
 
 _logger = logging.getLogger(__name__)
 
-
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
-
-    # -------------------------------------------------------------------------
-    # BASE SALE ORDER / CONTROL DE OBRA
-    # Campos y comportamiento general de la OV dentro del modulo.
-    # -------------------------------------------------------------------------
-    sproject_id = fields.Many2one(
-        'project.project', 'Proyecto', domain="[('sale_order_id.id', '=', id)]")
-
+    
+    sproject_id = fields.Many2one('project.project', 'Proyecto', domain="[('sale_order_id.id', '=', id)]")
+    
     # Este campo existía en ambos archivos. Se conserva este porque apunta al modelo correcto (project.sub.update)
-    project_sub_updates = fields.One2many(
-        'project.sub.update', 'sale_order_id', string='Avances del Proyecto')
+    project_sub_updates = fields.One2many('project.sub.update', 'sale_order_id', string='Avances del Proyecto')
 
     serv_assig = fields.Selection(
         [('assig', 'Con OS'),
          ('no_assig', 'Sin OS')],
-        string='Estatus de servicio',
+        string='Estatus de servicio', 
         required=True, tracking=True, default='no_assig')
 
     locked_positions = fields.Boolean(compute="_compute_locked_positions")
@@ -53,7 +44,7 @@ class SaleOrder(models.Model):
                 # Update position
                 if line.position != position:
                     line.position = position
-
+                
                 # Update name with prefix P01, P02...
                 prefix = f"P{position:02d} "
                 if line.name:
@@ -64,7 +55,7 @@ class SaleOrder(models.Model):
                     current_name = re.sub(r'^(\[\d+\]|P\d+)\s+', '', line.name)
                     new_name = prefix + current_name
                     if line.name != new_name:
-                        line.name = new_name
+                         line.name = new_name
 
     origen_id = fields.Many2one(
         'sale.order.origen',
@@ -117,27 +108,6 @@ class SaleOrder(models.Model):
             'target': 'current',
         }
 
-    # -------------------------------------------------------------------------
-    # SUPERVISOR DE OBRA — Campo computado para mostrar en tarjeta Kanban
-    # Lee el campo 'supervisor' del proyecto vinculado a la orden.
-    # No modifica user_id ni ningún campo nativo de sale.order.
-    # -------------------------------------------------------------------------
-    supervisor_obra = fields.Many2one(
-        'hr.employee',
-        string='Supervisor de Obra',
-        compute='_compute_supervisor_obra',
-        store=True,
-        help="Supervisor asignado al proyecto de obra vinculado a esta orden de venta.",
-    )
-
-    @api.depends('project_ids', 'project_ids.supervisor')
-    def _compute_supervisor_obra(self):
-        """Lee el supervisor del primer proyecto de obra vinculado a la orden."""
-        for order in self:
-            # project_ids es Many2many computado — tomamos el primero con supervisor
-            project = order.project_ids.filtered(lambda p: p.supervisor)[:1]
-            order.supervisor_obra = project.supervisor if project else False
-
     project_ids = fields.Many2many(
         "project.project",
         compute="_compute_project_ids",
@@ -173,8 +143,7 @@ class SaleOrder(models.Model):
         self.ensure_one()
 
         # Buscar todas las tareas relacionadas con esta orden de venta
-        tasks = self.env['project.task'].search(
-            [('sale_order_id', '=', self.id)])
+        tasks = self.env['project.task'].search([('sale_order_id', '=', self.id)])
 
         renamed_count = 0
         for task in tasks:
@@ -183,8 +152,7 @@ class SaleOrder(models.Model):
                 old_name = task.name
                 # Crear nuevo nombre con formato "Número Venta: Nombre Producto"
                 # Buscar la línea de venta correspondiente
-                sale_line = self.order_line.filtered(
-                    lambda l: l.product_id.name in task.name)
+                sale_line = self.order_line.filtered(lambda l: l.product_id.name in task.name)
                 if sale_line:
                     new_name = f"{self.name}: {sale_line[0].name}"
                 else:
@@ -197,12 +165,10 @@ class SaleOrder(models.Model):
                     renamed_count += 1
 
                     # Log para debugging
-                    _logger.info(
-                        f"Tarea {task.id} renombrada: '{old_name}' -> '{new_name}'")
+                    _logger.info(f"Tarea {task.id} renombrada: '{old_name}' -> '{new_name}'")
 
         if renamed_count > 0:
-            _logger.info(
-                f"Renombradas {renamed_count} tareas para la orden {self.name}")
+            _logger.info(f"Renombradas {renamed_count} tareas para la orden {self.name}")
 
     # Botón inteligente de proyecto (Dinámico)
     def action_view_project_ids(self):
@@ -244,6 +210,7 @@ class SaleOrder(models.Model):
                 "target": "current",
             }
 
+
     @api.depends('order_line.task_id.project_id', 'project_id')
     def _compute_project_ids(self):
         for order in self:
@@ -255,11 +222,25 @@ class SaleOrder(models.Model):
             all_projects = projects | order.project_id
             order.project_count = len(all_projects)
 
-    # -------------------------------------------------------------------------
-    # PROJECT CONTROL BOARD / KANBAN OPERATIVO
-    # Todo lo siguiente alimenta semaforos, supervisor, etapas, fechas y
-    # metricas consumidas por el tablero unificado y la vista kanban.
-    # -------------------------------------------------------------------------
+    ###Logica de Vista Unificada#######################################
+    
+    # SUPERVISOR DE OBRA — Campo computado para mostrar en tarjeta Kanban, lee el campo 'supervisor' del proyecto vinculado a la orden.
+    supervisor_obra = fields.Many2one(
+        'hr.employee',
+        string='Supervisor de Obra',
+        compute='_compute_supervisor_obra',
+        store=True,
+        help="Supervisor asignado al proyecto de obra vinculado a esta orden de venta.",
+    )
+
+    @api.depends('project_ids', 'project_ids.supervisor')
+    def _compute_supervisor_obra(self):
+        """Lee el supervisor del primer proyecto de obra vinculado a la orden."""
+        for order in self:
+            # project_ids es Many2many computado — tomamos el primero con supervisor
+            project = order.project_ids.filtered(lambda p: p.supervisor)[:1]
+            order.supervisor_obra = project.supervisor if project else False
+
     priority = fields.Selection(
         selection=[
             ('0', 'Normal'),
@@ -277,6 +258,7 @@ class SaleOrder(models.Model):
     # Fechas calculadas (store=False — se recalculan en vivo cada carga)
     # Usan date_order (inicio) y commitment_date (fin planeado) que ya existen.
     # ---------------------------------------------------------------------------
+    
     delay_days = fields.Integer(
         string='Días de Retraso',
         compute='_compute_sale_kanban_dates',
@@ -476,17 +458,18 @@ class SaleOrder(models.Model):
             order.avance_facturado = values['avance_facturado']
             order.kanban_color_sale = values['kanban_color_sale']
 
-            # Días de Retraso se calculan en _compute_sale_kanban_dates
+
+    ###################################################################
 
 class Origen(models.Model):
     _name = 'sale.order.origen'
     _description = 'Orígenes de órdenes de venta'
     _order = 'name asc'
-
+    
     name = fields.Char(string='Nombre', required=True, translate=True)
     color = fields.Integer(string='Color Index')
     active = fields.Boolean(string='Activo', default=True)
-
+    
     _sql_constraints = [
         ('name_uniq', 'unique (name)', 'El nombre del origen debe ser único!'),
     ]
@@ -496,11 +479,11 @@ class Destino(models.Model):
     _name = 'sale.order.destino'
     _description = 'Destinos de órdenes de venta'
     _order = 'name asc'
-
+    
     name = fields.Char(string='Nombre', required=True, translate=True)
     color = fields.Integer(string='Color Index')
     active = fields.Boolean(string='Activo', default=True)
-
+    
     _sql_constraints = [
         ('name_uniq', 'unique (name)', 'El nombre del destino debe ser único!'),
     ]
@@ -510,11 +493,11 @@ class Incidencia(models.Model):
     _name = 'sale.order.incidencia'
     _description = 'Incidencias en órdenes de venta'
     _order = 'name asc'
-
+    
     name = fields.Char(string='Nombre', required=True, translate=True)
     color = fields.Integer(string='Color Index')
     active = fields.Boolean(string='Activo', default=True)
-
+    
     _sql_constraints = [
         ('name_uniq', 'unique (name)', 'El nombre de la incidencia debe ser único!'),
     ]

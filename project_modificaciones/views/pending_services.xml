@@ -11,6 +11,7 @@
                     <strong>Archivado</strong> Este servicio pendiente ha sido archivado. </div>
 
                 <header>
+                    <field name="has_active_merge_request" invisible="1" />
                     <button name="action_set_to_pending" type="object"
                         string="Pendiente" class="btn-warning" invisible="state != 'draft'" />
                     <button name="action_assign" type="object"
@@ -37,9 +38,13 @@
                         class="btn-secondary" invisible="not active" groups="base.group_user" />
                     <button name="toggle_active" type="object" string="Restaurar"
                         class="btn-primary" invisible="active" groups="base.group_user" />
-
-                    <button name="%(action_fusion_servicio_pendiente)d" type="action" string="Fusionar" class="btn-success"
-                        context="{'default_servicio_o': id}"/>
+                        
+                    <!-- LOGICA FUSION: controla solicitudes activas y botón de solicitud. -->
+                    <button name="%(action_pending_merge_request)d" type="action" string="Solicitar operación" class="btn-success"
+                        context="{'default_servicio_o': id, 'active_model': 'pending.service', 'active_id': id}"
+                        invisible="state in ['assigned', 'canceled'] or has_active_merge_request or active == False"
+                        groups="project_modificaciones.group_pending_service_merge_requester,project_modificaciones.group_pending_service_merge_approver"/>
+                    <!-- FIN LOGICA FUSION -->
                     
                     <field name="state" widget="statusbar" />
                 </header>
@@ -75,18 +80,22 @@
                         </h1>
                     </div>
 
-                    <!-- Descripción del servicio -->
-                    <group col="2">
-                        <field name="descripcion_servicio" colspan="2" />
+                    <!-- Descripción y Prioridad del servicio -->
+                    <group>
+                        <group>
+                            <field name="descripcion_servicio"/>
+                        </group>
+                        <group>
+                            <field name="priority" widget="priority" />
+                        </group>
                     </group>
 
                     <group string="Planeación">
                         <group>
                             <field name="date_start" string="Inicio (Planeado)" required="id == False" />
-                            <field name="date_end_plan" string="Fin Plan (Planeado)" required="id == False" />
                         </group>
                         <group>
-                            <field name="priority" widget="priority" />
+                            <field name="date_end_plan" string="Fin Plan (Planeado)" required="id == False" />
                         </group>
                     </group>
 
@@ -121,36 +130,18 @@
                             <field name="sale_order_id" invisible="1" />
                             <field name="total" invisible="1" readonly="1" />
                             <field name="company_id" />
-                            <field name="fusion_origen_id"
+                            <!-- LOGICA FUSION: Trazabilidad visual de origen/destino fusionado. -->
+                            <field name="operation_origin_count"
                                 readonly="1"
-                                context="{'active_test': False}"
-                                options="{'no_create': True, 'no_edit': True}" 
-                                invisible="fusion_destino_id or not fusion_origen_id"/>
-                            <field name="fusion_destino_id"
+                                invisible="not operation_origin_count"/>
+                            <field name="operation_destination_count"
                                 readonly="1"
-                                context="{'active_test': False}"
-                                options="{'no_create': True, 'no_edit': True}" 
-                                invisible="fusion_origen_id or not fusion_destino_id"/>
+                                invisible="not operation_destination_count"/>
+                            <field name="active_merge_request_count"
+                                readonly="1"
+                                invisible="not has_active_merge_request"/>
+                            <!-- FIN LOGICA FUSION -->
 
-                            <!-- ── Campos calculados (readonly) ── -->
-                            <field name="date_end_actual"
-                                string="Fecha Actual Estimada"
-                                readonly="1"
-                                decoration-danger="date_end_plan and date_end_actual &gt; date_end_plan"
-                                invisible="1" />
-                            <field name="delay_days"
-                                string="Días de Retraso"
-                                readonly="1"
-                                decoration-danger="delay_days &gt; 0"
-                                invisible="1" />
-                            <field name="kanban_color"
-                                string="Semáforo"
-                                readonly="1"
-                                widget="badge"
-                                decoration-success="kanban_color == 'green'"
-                                decoration-warning="kanban_color == 'amber'"
-                                decoration-danger="kanban_color == 'red'"
-                                invisible="1" />
                         </group>
                     </group>
 

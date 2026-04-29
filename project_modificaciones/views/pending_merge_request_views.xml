@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="seq_pending_merge_request" model="ir.sequence">
+        <field name="name">Solicitud de Operación de Servicios Pendientes</field>
+        <field name="code">pending.merge.request</field>
+        <field name="prefix">SOSP/%(year)s/</field>
+        <field name="padding">5</field>
+    </record>
+
+    <record id="pending_merge_request_view_tree_simple" model="ir.ui.view">
+        <field name="name">pending.merge.request.tree.simple</field>
+        <field name="model">pending.merge.request</field>
+        <field name="groups_id" eval="[(4, ref('project_modificaciones.group_pending_service_merge_requester')),
+                                       (4, ref('project_modificaciones.group_pending_service_merge_approver'))]"/>
+        <field name="arch" type="xml">
+            <tree string="Solicitudes de Operación" create="0" edit="0">
+                <field name="name"/>
+                <field name="servicio_o"/>
+                <field name="servicio_d"/>
+                <field name="proceso"/>
+                <field name="state" widget="badge"
+                    decoration-info="state == 'submitted'"
+                    decoration-success="state == 'approved'"
+                    decoration-danger="state == 'rejected'"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="pending_merge_request_view_form_simple" model="ir.ui.view">
+        <field name="name">pending.merge.request.form.simple</field>
+        <field name="model">pending.merge.request</field>
+        <field name="groups_id" eval="[(4, ref('project_modificaciones.group_pending_service_merge_requester')),
+                                       (4, ref('project_modificaciones.group_pending_service_merge_approver'))]"/>
+        <field name="arch" type="xml">
+            <form string="Solicitud de Operación">
+                <header>
+                    <button string="Guardar Borrador" special="save" class="btn-secondary"
+                        invisible="state != 'draft'"/>
+                    <button name="action_submit" string="Enviar a Aprobación" type="object"
+                        class="btn-primary" invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,approved,rejected"/>
+                </header>
+                <sheet>
+                    <group string="Solicitud">
+                        <group>
+                            <field name="servicio_o"
+                                readonly="1"
+                                domain="[('state','not in',['assigned','canceled']),('sale_order_id','=',False)]"
+                                options="{'no_create': True, 'no_edit': True}"/>
+
+                            <field name="proceso" widget="radio" options="{'horizontal': true}"
+                                readonly="state != 'draft'"/>
+                        </group>
+                        <group>
+                            <field name="servicio_d"
+                                readonly="state != 'draft'"
+                                domain="[('state','not in',['assigned','canceled']),('sale_order_id','=',False),('id','!=',servicio_o)]"
+                                options="{'no_create': True, 'no_edit': True}"/>
+
+                            <field name="modo_reasignacion" widget="radio" options="{'horizontal': true}"
+                                invisible="proceso != 'reasignacion'"
+                                readonly="state != 'draft'"/>
+
+                            <field name="notify_user_id" invisible="0" readonly="1" string="Aprobador"/>
+                        </group>
+                    </group>
+                    <group class="mt-4">
+                        <field name="request_reason" readonly="state != 'draft'" required="state == 'draft'"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="pending_merge_request_view_tree_approver" model="ir.ui.view">
+        <field name="name">pending.merge.request.tree.approver</field>
+        <field name="model">pending.merge.request</field>
+        <field name="groups_id" eval="[(4, ref('project_modificaciones.group_pending_service_merge_approver'))]"/>
+        <field name="arch" type="xml">
+            <tree string="Solicitudes de Operación" create="0">
+                <field name="name"/>
+                <field name="requester_id"/>
+                <field name="servicio_o"/>
+                <field name="servicio_d"/>
+                <field name="proceso"/>
+                <field name="request_reason"/>
+                <field name="approver_id"/>
+                <field name="state" widget="badge"
+                    decoration-info="state == 'submitted'"
+                    decoration-success="state == 'approved'"
+                    decoration-danger="state == 'rejected'"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="pending_merge_request_view_form_approver" model="ir.ui.view">
+        <field name="name">pending.merge.request.form.approver</field>
+        <field name="model">pending.merge.request</field>
+        <field name="groups_id" eval="[(4, ref('project_modificaciones.group_pending_service_merge_approver'))]"/>
+        <field name="arch" type="xml">
+            <form string="Solicitud de Operación" create="0">
+                <header>
+                    <button name="action_approve" string="Revisar y Ejecutar" type="object"
+                        class="btn-primary" invisible="state != 'submitted'"/>
+                    <button name="action_reject" string="Rechazar" type="object"
+                        class="btn-secondary" invisible="state not in ('draft', 'submitted')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,approved,rejected"/>
+                </header>
+                <sheet>
+                    <group string="Solicitud">
+                        <group>
+                            <field name="name" readonly="1"/>
+                            <field name="servicio_o" readonly="1"/>
+                            <field name="proceso" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="requester_id" readonly="1"/>
+                            <field name="servicio_d" readonly="1"/>
+                            <field name="notify_user_id" invisible="1"/>
+                            <field name="modo_reasignacion" readonly="1" invisible="proceso != 'reasignacion'"/>
+                        </group>
+                    </group>
+                    <group class="mt-4">
+                        <field name="request_reason" readonly="1"/>
+                    </group>
+                    <group>
+                        <group string="Aprobación">
+                            <field name="approver_id" readonly="1"/>
+                            <field name="approved_date" readonly="1"/>
+                        </group>
+                        <group string="Rechazado">
+                            <field name="rejection_reason" placeholder="Motivo opcional" />
+                            <field name="rejected_date" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="pending_merge_request_view_search" model="ir.ui.view">
+        <field name="name">pending.merge.request.search</field>
+        <field name="model">pending.merge.request</field>
+        <field name="arch" type="xml">
+            <search string="Solicitudes de Operación">
+                <field name="name"/>
+                <field name="servicio_o"/>
+                <field name="servicio_d"/>
+                <field name="requester_id"/>
+                <filter name="submitted" string="En aprobación" domain="[('state','=','submitted')]"/>
+                <filter name="approved" string="Ejecutadas" domain="[('state','=','approved')]"/>
+                <filter name="rejected" string="Rechazadas" domain="[('state','=','rejected')]"/>
+                <group expand="0" string="Agrupar Por">
+                    <filter name="group_state" string="Estado" context="{'group_by':'state'}"/>
+                    <filter name="group_requester" string="Solicitante" context="{'group_by':'requester_id'}"/>
+                    <filter name="group_process" string="Proceso" context="{'group_by':'proceso'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_pending_merge_request" model="ir.actions.act_window">
+        <field name="name">Solicitar Operación</field>
+        <field name="res_model">pending.merge.request</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="pending_merge_request_view_form_simple"/>
+        <field name="target">current</field>
+        <field name="context">{'default_servicio_o': active_id, 'default_proceso': 'fusion'}</field>
+        <field name="groups_id" eval="[(4, ref('project_modificaciones.group_pending_service_merge_requester')),
+                                       (4, ref('project_modificaciones.group_pending_service_merge_approver'))]"/>
+    </record>
+
+    <record id="action_pending_merge_request_user" model="ir.actions.act_window">
+        <field name="name">Mis Solicitudes de Operación</field>
+        <field name="res_model">pending.merge.request</field>
+        <field name="view_mode">tree,form</field>
+        <field name="views" eval="[(ref('pending_merge_request_view_tree_simple'), 'tree'), (ref('pending_merge_request_view_form_simple'), 'form')]"/>
+        <field name="search_view_id" ref="pending_merge_request_view_search"/>
+        <field name="domain">[('requester_id', '=', uid)]</field>
+        <field name="groups_id" eval="[(4, ref('project_modificaciones.group_pending_service_merge_requester'))]"/>
+    </record>
+
+    <record id="action_pending_merge_request_approver" model="ir.actions.act_window">
+        <field name="name">Solicitudes de Operación</field>
+        <field name="res_model">pending.merge.request</field>
+        <field name="view_mode">tree,form</field>
+        <field name="views" eval="[(ref('pending_merge_request_view_tree_approver'), 'tree'), (ref('pending_merge_request_view_form_approver'), 'form')]"/>
+        <field name="search_view_id" ref="pending_merge_request_view_search"/>
+        <field name="context">{'search_default_submitted': 1, 'create': False}</field>
+        <field name="groups_id" eval="[(4, ref('project_modificaciones.group_pending_service_merge_approver'))]"/>
+    </record>
+</odoo>

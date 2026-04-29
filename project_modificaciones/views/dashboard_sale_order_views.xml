@@ -25,10 +25,6 @@
         <field name="arch" type="xml">
             <form>
                 <div class="oe_button_box" name="button_box">
-                    <button name="action_view_tasks" type="object"
-                        class="oe_stat_button" icon="fa-tasks">
-                        <field name="task_count" widget="statinfo" string="Tareas" />
-                    </button>
                     <button name="action_view_purchase_orders" type="object"
                         class="oe_stat_button" icon="fa-shopping-cart">
                         <field name="purchase_count" widget="statinfo" string="Compras" />
@@ -53,10 +49,6 @@
                         class="oe_stat_button" icon="fa-cubes">
                         <field name="stock_move_count" widget="statinfo" string="Mov. Almacén" />
                     </button>
-                    <button name="action_view_timesheets" type="object"
-                        class="oe_stat_button" icon="fa-clock-o">
-                        <field name="timesheet_count" widget="statinfo" string="Hojas de Horas" />
-                    </button>
                 </div>
 
                 <!-- Contenido del dashboard -->
@@ -80,7 +72,7 @@
     <!--PLANTILLA
     QWEB-->
     <template id="sale_order_dashboard_template" name="Sale Order Dashboard Template">
-        <div class="row mb-4 dashboard-container o_dashboard_container animate-fade-in">
+        <div class="row mb-4 dashboard-container">
             <!-- Header -->
             <div class="row mb-4">
                 <div class="col-12">
@@ -204,7 +196,7 @@
                                     <h3 class="kpi-value text-danger">
                                         <t t-esc="format_monetary(financials['costs'])" />
                                     </h3>
-                                    <p class="small text-muted">Compras + Gastos + Almacén + Horas</p>
+                                    <p class="small text-muted">Compras + Gastos</p>
                                 </div>
                             </div>
                         </div>
@@ -249,26 +241,6 @@
 
             <!-- Métricas Detalladas -->
             <div class="row">
-                <!-- Tareas -->
-                <div class="col-md-4">
-                    <div class="card animacion">
-                        <div class="card-header">
-                            <h6 class="card-title">
-                                <i class="fa fa-tasks me-2"></i> Tareas </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>Registros:</span>
-                                <span class="badge badge-lines" t-esc="metrics['task_count']" />
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span>Base Operativa:</span>
-                                <span class="fw-bold">Control de costos</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Compras -->
                 <div class="col-md-4">
                     <div class="card animacion">
@@ -327,50 +299,6 @@
                                 <span>Total:</span>
                                 <span class="fw-bold"
                                     t-esc="format_monetary(metrics['lines_total'])" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Almacén -->
-                <div class="col-md-4">
-                    <div class="card animacion">
-                        <div class="card-header">
-                            <h6 class="card-title">
-                                <i class="fa fa-cubes me-2"></i> Movimientos de Almacén </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>Movimientos:</span>
-                                <span class="badge badge-compras"
-                                    t-esc="metrics['stock_move_count']" />
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span>Costo:</span>
-                                <span class="fw-bold"
-                                    t-esc="format_monetary(metrics['stock_move_cost'])" />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Hojas de Horas -->
-                <div class="col-md-4">
-                    <div class="card animacion">
-                        <div class="card-header">
-                            <h6 class="card-title">
-                                <i class="fa fa-clock-o me-2"></i> Hojas de Horas </h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <span>Registros:</span>
-                                <span class="badge badge-gastos"
-                                    t-esc="metrics['timesheet_count']" />
-                            </div>
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span>Costo:</span>
-                                <span class="fw-bold"
-                                    t-esc="format_monetary(metrics['timesheet_total'])" />
                             </div>
                         </div>
                     </div>
@@ -461,8 +389,8 @@
                                                     <thead>
                                                         <tr>
                                                             <th class="text-center"
-                                                                style="width: 15%">ID Avance</th>
-                                                            <th style="width: 25%">Producto</th>
+                                                                style="width: 10%">ID Avance</th>
+                                                            <th style="width: 30%">Producto</th>
                                                             <th class="text-center"
                                                                 style="width: 10%">Supervisor I.</th>
                                                             <th class="text-center"
@@ -491,12 +419,9 @@
                                                                             t-esc="avance.name" />
                                                                     </a>
                                                                 </td>
-                                                                <td>
-                                                                    <span
-                                                                        class="so-truncate so-truncate-lg"
-                                                                        t-att-title="avance.producto.name if avance.producto else 'SIN PRODUCTO'"
-                                                                        t-esc="avance.producto.name if avance.producto else 'SIN PRODUCTO'" />
-                                                                </td>
+                                                                <td
+                                                                    style="white-space: normal; overflow-wrap: break-word;"
+                                                                    t-esc="avance.producto.name if avance.producto else 'SIN PRODUCTO'" />
                                                                 <td class="text-center"
                                                                     t-esc="avance.responsible_id.name" />
                                                                 <td class="text-center"
@@ -567,11 +492,9 @@
                                             <tbody>
                                                 <t t-foreach="sale_order.order_line" t-as="line">
                                                     <tr class="align-middle">
-                                                        <td>
-                                                            <span class="so-truncate so-truncate-lg"
-                                                                t-att-title="line.name"
-                                                                t-esc="line.name" />
-                                                        </td>
+                                                        <td
+                                                            style="white-space: normal; overflow-wrap: break-word;"
+                                                            t-esc="line.name" />
                                                         <td class="text-center"
                                                             t-esc="line.product_uom_qty" />
                                                         <td class="text-center"
@@ -617,142 +540,6 @@
                                                     </tr>
                                                 </t>
                                             </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </t>
-
-            <t t-if="tasks_list">
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="card-title">
-                                    <i class="fa fa-tasks me-2"></i> Tareas Relacionadas <span
-                                        class="badge badge-lines ms-2"
-                                        t-esc="metrics['task_count']" />
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="scroll-box">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-striped"
-                                            style="table-layout: fixed;">
-                                            <thead>
-                                                <tr>
-                                                    <th style="width: 28%">Tarea</th>
-                                                    <th style="width: 22%">Proyecto</th>
-                                                    <th class="text-center" style="width: 15%">Etapa</th>
-                                                    <th class="text-center" style="width: 10%">
-                                                        Progreso</th>
-                                                    <th class="text-center" style="width: 10%">
-                                                        Entregado</th>
-                                                    <th class="text-center" style="width: 15%">
-                                                        Subtotal</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <t t-foreach="tasks_list" t-as="task">
-                                                    <tr class="align-middle">
-                                                        <td>
-                                                            <span class="so-truncate so-truncate-lg"
-                                                                t-att-title="task['name']"
-                                                                t-esc="task['name']" />
-                                                        </td>
-                                                        <td t-esc="task['project']" />
-                                                        <td class="text-center"
-                                                            t-esc="task['stage']" />
-                                                        <td class="text-center">
-                                                            <span class="badge progreso bg-success">
-                                                                <t
-                                                                    t-esc="format_percentage(task['progress'])" />
-                                                            </span>
-                                                        </td>
-                                                        <td class="text-center"
-                                                            t-esc="format_unidad(task['delivered'])" />
-                                                        <td class="text-center"
-                                                            t-esc="format_monetary(task['subtotal'])" />
-                                                    </tr>
-                                                </t>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </t>
-
-            <t t-if="timesheets_list">
-                <div class="row mt-4">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header">
-                                <h6 class="card-title">
-                                    <i class="fa fa-clock-o me-2"></i> Detalle de Hojas de Horas <span
-                                        class="badge badge-gastos ms-2"
-                                        t-esc="metrics['timesheet_count']" />
-                                </h6>
-                            </div>
-                            <div class="card-body">
-                                <div class="scroll-box">
-                                    <div class="table-responsive">
-                                        <table class="table table-sm table-striped table-hover mb-0 kpi-table"
-                                            style="table-layout: fixed;">
-                                            <thead class="bg-100 align-middle">
-                                                <tr>
-                                                    <th style="width: 15%">Empleado</th>
-                                                    <th style="width: 15%">Tarea</th>
-                                                    <th style="width: 15%">Proyecto</th>
-                                                    <th style="width: 15%">Fecha</th>
-                                                    <th style="width: 20%">Descripción</th>
-                                                    <th class="text-center" style="width: 10%">Horas</th>
-                                                    <th class="text-center" style="width: 10%">Costo</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <t t-foreach="timesheets_list" t-as="ts">
-                                                    <tr class="align-middle">
-                                                        <td t-esc="ts['employee']" />
-                                                        <td>
-                                                            <span class="so-truncate so-truncate-md"
-                                                                t-att-title="ts['task']"
-                                                                t-esc="ts['task']" />
-                                                        </td>
-                                                        <td t-esc="ts['project']" />
-                                                        <td class="text-center" t-esc="ts['date']" />
-                                                        <td>
-                                                            <span class="so-truncate so-truncate-lg"
-                                                                t-att-title="ts['description'] or 'Sin Descripción'"
-                                                                t-esc="ts['description'] or 'N/A'" />
-                                                        </td>
-                                                        <td class="text-center"
-                                                            t-esc="format_unit(ts['unit_amount'])" />
-                                                        <td class="text-center"
-                                                            t-esc="format_monetary(ts['total'])" />
-                                                    </tr>
-                                                </t>
-                                            </tbody>
-                                            <tfoot class="timesheet-footer fw-bolder">
-                                                <tr class="align-middle">
-                                                    <td
-                                                        class="text-uppercase text-muted fw-semibold">
-                                                        TOTAL:</td>
-                                                    <td></td>
-                                                    <td></td>
-                                                    <td></td>
-                                                    <td></td>
-                                                    <td class="text-center fw-bold"
-                                                        t-esc="format_unit(metrics['timesheet_hr_total'])"></td>
-                                                    <td class="text-center fw-bold"
-                                                        t-esc="format_monetary(metrics['timesheet_total'])"></td>
-                                                </tr>
-                                            </tfoot>
                                         </table>
                                     </div>
                                 </div>
@@ -814,34 +601,6 @@
                                             </t>
                                         </td>
 
-                                    </tr>
-                                    <tr>
-                                        <td>Costos (Mov. Almacén)</td>
-                                        <td class="text-end text-danger"
-                                            t-esc="format_monetary(metrics['stock_move_cost'])" />
-                                        <td class="text-end text-danger">
-                                            <t t-if="metrics['avances_value_delivered']">
-                                                <t
-                                                    t-esc="format_percentage((metrics['stock_move_cost'] / metrics['avances_value_delivered'] * 100))" />
-                                            </t>
-                                            <t t-else="0">
-                                                0.0%
-                                            </t>
-                                        </td>
-                                    </tr>
-                                    <tr>
-                                        <td>Costos (Hojas de Horas)</td>
-                                        <td class="text-end text-danger"
-                                            t-esc="format_monetary(metrics['timesheet_total'])" />
-                                        <td class="text-end text-danger">
-                                            <t t-if="metrics['avances_value_delivered']">
-                                                <t
-                                                    t-esc="format_percentage((metrics['timesheet_total'] / metrics['avances_value_delivered'] * 100))" />
-                                            </t>
-                                            <t t-else="0">
-                                                0.0%
-                                            </t>
-                                        </td>
                                     </tr>
                                     <tr class="fw-bold">
                                         <td>Margen Neto</td>

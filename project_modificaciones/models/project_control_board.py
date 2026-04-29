@@ -29,6 +29,18 @@ class ProjectControlBoard(models.Model):
         string="Orden de Venta",
         readonly=True,
     )
+    linked_pending_id = fields.Many2one(
+        "pending.service",
+        string="Servicio Pendiente Relacionado",
+        compute="_compute_linked_documents",
+        readonly=True
+    )
+    linked_sale_id = fields.Many2one(
+        "sale.order",
+        string="Orden de Venta Relacionada",
+        compute="_compute_linked_documents",
+        readonly=True
+    )
     pending_origin_name = fields.Char(
         string="Nombre servicio pendiente origen",
         readonly=True,
@@ -164,6 +176,21 @@ class ProjectControlBoard(models.Model):
     def _today_mx_sql(self):
         return "(CURRENT_TIMESTAMP AT TIME ZONE 'America/Mexico_City')::date"
 
+    @api.depends("pending_id", "pending_id.sale_order_id", "sale_id", "sale_id.pending_service_id")
+    def _compute_linked_documents(self):
+        for record in self:
+            pending = record.pending_id
+            sale = record.sale_id
+
+            if not pending and sale and sale.pending_service_id:
+                pending = sale.pending_service_id
+
+            if not sale and pending and pending.sale_order_id:
+                sale = pending.sale_order_id[:1]
+
+            record.linked_pending_id = pending
+            record.linked_sale_id = sale
+
     @api.model
     def _read_group_lifecycle_stage(self, stages, domain, order):
         return [
@@ -176,6 +203,7 @@ class ProjectControlBoard(models.Model):
         ]
 
     def _stage_transition_map(self):
+        sale_done_state = self._sale_execution_done_state()
         return {
             "pending": {
                 "no_plan": "draft",
@@ -189,11 +217,18 @@ class ProjectControlBoard(models.Model):
                 "no_plan": "draft",
                 "paused": "sent",
                 "in_progress": "sale",
-                "execution_done": "done",
-                "billing": "done",
+                "execution_done": sale_done_state,
+                "billing": sale_done_state,
                 "closed": "cancel",
             },
         }
+
+    def _sale_execution_done_state(self):
+        sale_state_field = self.env["sale.order"]._fields["state"]
+        valid_states = {
+            value for value, _label in sale_state_field.selection
+        }
+        return "done" if "done" in valid_states else "sale"
 
     # MEJORA 4: Transiciones válidas para pending.service
     def _valid_pending_transitions(self):
@@ -223,21 +258,26 @@ class ProjectControlBoard(models.Model):
         para sale.order desde el tablero.
         Nota: 'sale' -> 'draft' no está permitido por Odoo core.
         """
-        return {
+        done_state = self._sale_execution_done_state()
+        transitions = {
             ("draft", "sent"),
             ("draft", "cancel"),
             ("sent", "sale"),
             ("sent", "draft"),
             ("sent", "cancel"),
-            ("sale", "done"),
             ("sale", "cancel"),
             # Permitir quedarse en el mismo estado (no-op)
             ("draft", "draft"),
             ("sent", "sent"),
             ("sale", "sale"),
-            ("done", "done"),
             ("cancel", "cancel"),
         }
+        if done_state == "done":
+            transitions.update({
+                ("sale", "done"),
+                ("done", "done"),
+            })
+        return transitions
 
     def _sale_rental_filter_sql(self, alias="so"):
         if "is_rental_order" in self.env["sale.order"]._fields:
@@ -668,6 +708,7 @@ class ProjectControlBoard(models.Model):
                     NULL::varchar AS sale_state,
                     p.state AS state,
                     CASE
+                        WHEN p.date_end_plan IS NULL THEN 'no_date'
                         WHEN COALESCE(ptm.task_count, 0) = 0 THEN p.kanban_color
                         WHEN p.date_end_plan IS NOT NULL
                              AND p.date_end_plan::date < {today_sql}
@@ -768,6 +809,7 @@ class ProjectControlBoard(models.Model):
                     END AS kanban_color,
                     CASE
                         WHEN so.state = 'cancel' THEN 'closed'
+                        WHEN sis.invoice_substate_id = 7 THEN 'billing'
                         WHEN so.state = 'done' THEN 'billing'
                         WHEN {date_start_sql} IS NULL OR so.commitment_date IS NULL THEN 'no_plan'
                         WHEN COALESCE(stm.avance_real, so.avance_actual, 0.0) >= 100.0 THEN 'execution_done'

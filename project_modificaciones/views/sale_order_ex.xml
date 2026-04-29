@@ -15,103 +15,88 @@
                     <attribute name="readonly">state in ('sale', 'cancel')</attribute>
                 </xpath>
 
-                <xpath
-                    expr="//form/sheet/notebook/page[@name='other_information']/group/group[@name='sale_shipping']/div/field[@name='commitment_date']"
-                    position="attributes">
-                    <attribute name="required">id == False</attribute>
-                </xpath>
-
                 <xpath expr="//field[@name='sale_order_template_id']" position="after">
-                    <field name="sproject_id" invisible="1" />
-                    <field name="serv_assig"
-                        widget="selection_badge"
+                    <field name="sproject_id" invisible="1"/>
+                    <field name="serv_assig" 
+                        widget="selection_badge" 
                         decoration-muted="serv_assig == 'no_assig'"
-                        decoration-primary="serv_assig == 'assig'" />
+                        decoration-primary ="serv_assig == 'assig'"/>
 
                     <label for="origen_id" />
                     <div name="dest_div" class="d-flex">
-                        <field name="origen_id"
-                            options="{'no_open': True,'no_create': True, 'no_edit':True}" />
+                        <field name="origen_id" options="{'no_open': True,'no_create': True, 'no_edit':True}"/>
                         <span class="oe_inline o_form_label mx-3">Destino</span>
-                        <field name="dest_id"
-                            options="{'no_open': True,'no_create': True, 'no_edit':True}" />
+                        <field name="dest_id" options="{'no_open': True,'no_create': True, 'no_edit':True}"/>
                     </div>
 
-                    <field name="incidencia"
-                        options="{'no_open': True,'no_create': True, 'no_edit':True}" />
+                    <field name="incidencia" options="{'no_open': True,'no_create': True, 'no_edit':True}"/>
                 </xpath>
 
                 <xpath expr="//div[@class='oe_button_box']" position="inside">
-                    <button name="action_view_pending_service" type="object" class="oe_stat_button"
-                        icon="fa-file-text-o" invisible="not pending_service_id">
-                        <field string="Servicio Pendiente" name="pending_service_id"
-                            widget="statinfo" />
+                    <button name="action_view_pending_service" type="object" class="oe_stat_button" icon="fa-file-text-o" invisible="not pending_service_id">
+                        <field string="Servicio Pendiente" name="pending_service_id" widget="statinfo"/>
                     </button>
                 </xpath>
 
 
                 <xpath expr="//page[@name='order_lines']/field[@name='order_line']" position="after">
-                    <button name="recompute_positions" type="object" string=" Renumerar Partidas"
+                     <button name="recompute_positions" type="object" string=" Renumerar Partidas"
                         class="btn btn-link btn-sm mt-1" icon="fa-sort-numeric-asc"
-                        help="Actualiza la numeración P01, P02... manualmente." />
+                        help="Actualiza la numeración P01, P02... manualmente."/>
                 </xpath>
 
-                <xpath expr="//field[@name='origin']" position="before">
-                    <field name="pending_service_id" string="Servicio pendiente" />
-                </xpath>
+                 <xpath expr="//field[@name='origin']" position="before">
+                     <field name="pending_service_id" string="Servicio pendiente"/>
+                 </xpath>
 
                 <xpath expr="//notebook" position="inside">
                     <page string="Avances del Proyecto" name="project_updates">
                         <field name="project_sub_updates" mode="tree,form" create="false" delete="0"
                             widget="many2many_list">
-
+                            
                             <tree create="0" delete="0">
                                 <field name="name" string="Avance" />
-                                <field name="project_id" string="Proyecto" optional="hide" />
+                                <field name="project_id" string="Proyecto" optional="hide"/>
                                 <field name="date" string="Elaborado" />
-                                <field name="task_id" optional="show" />
-                                <field name="producto" string="Servicio" optional="hide" />
+                                <field name="task_id" optional="show"/> <field name="producto" string="Servicio" optional="hide"/>
                                 <field name="unit_progress" string="Unidades" />
                                 <field name="sale_current" string="Valor" sum="Total" />
-                                <field name="virtual_total_progress" widget="progressbar"
-                                    string="Progreso" optional="hide" />
+                                <field name="virtual_total_progress" widget="progressbar" string="Progreso" optional="hide"/>
                                 <field name="responsible_id" placeholder="Responsable"
                                     widget="many2one_avatar_user"
                                     options="{'no_open': True,'no_create': True, 'no_edit':True}" />
-
+                                
                                 <field name="avances_state" widget="badge"
                                     decoration-success="avances_state == 'assigned' or avances_state == 'done'"
                                     decoration-info="avances_state == 'confirmed'"
                                     decoration-warning="avances_state == 'draft'" />
-
+                                
                                 <field name="state" widget="badge"
-                                    string="Facturacion"
+                                    string="Facturacion" 
                                     decoration-danger="state == 'no_fact'"
-                                    decoration-success="state == 'fact'" />
-
-                                <button name="action_mark_invoiced" type="object"
-                                    class="btn btn-success" icon="fa-check"
-                                    title="Marcar facturado" invisible="state == 'fact'" />
-                                <button name="action_mark_not_invoiced" type="object"
-                                    class="btn btn-danger" icon="fa-times"
-                                    title="Marcar no facturado" invisible="state == 'no_fact'" />
+                                    decoration-success="state == 'fact'"/>
+                                
+                                <button name="action_mark_invoiced" type="object" 
+                                        class="btn btn-success" icon="fa-check" 
+                                        title="Marcar facturado" invisible="state == 'fact'"/>
+                                <button name="action_mark_not_invoiced" type="object" 
+                                        class="btn btn-danger" icon="fa-times" 
+                                        title="Marcar no facturado" invisible="state == 'no_fact'"/>
                             </tree>
 
                             <form>
                                 <header>
                                     <field name="avances_state" widget="statusbar" readonly="1" />
-
-                                    <field name="state" invisible="1" />
-                                    <button name="action_mark_invoiced" type="object"
-                                        string="Marcar como facturado" class="btn-success"
-                                        icon="fa-check"
+                                    
+                                    <field name="state" invisible="1"/>
+                                    <button name="action_mark_invoiced" type="object" 
+                                        string="Marcar como facturado" class="btn-success" icon="fa-check"
                                         invisible="state == 'fact'"
-                                        groups="project_modificaciones.group_sub_update_mark_invoiced" />
-                                    <button name="action_mark_not_invoiced" type="object"
-                                        string="Marcar como no facturado"
+                                        groups="project_modificaciones.group_sub_update_mark_invoiced"/>
+                                    <button name="action_mark_not_invoiced" type="object" string="Marcar como no facturado" 
                                         class="btn-danger" icon="fa-times"
                                         invisible="state == 'no_fact'"
-                                        groups="project_modificaciones.group_sub_update_mark_invoiced" />
+                                        groups="project_modificaciones.group_sub_update_mark_invoiced"/>
                                 </header>
                                 <sheet>
                                     <div class="oe_title">
@@ -163,7 +148,7 @@
                                             <field name="ct"
                                                 readonly="avances_state in ['confirmed', 'assigned']" />
                                             <field name="especialidad_trabajo" />
-                                            <field name="analitica" />
+                                            <field name="analitica"/>
                                         </group>
                                         <group>
                                             <field name="date"
@@ -243,13 +228,12 @@
                                             <field name="costo_avance_formateado" />
                                         </group>
                                     </group>
-                                    <!-- Campos de dominio eliminados para evitar problemas con IDs
-                                    inválidos -->
+                                    <!-- Campos de dominio eliminados para evitar problemas con IDs inválidos -->
                                     <separator string="Estado de la facturacion" />
                                     <group>
                                         <group>
                                             <field name="bitacorapmv" />
-                                            <field name="numlic" string="#Bitacora/Licencia" />
+                                            <field name="numlic" string="#Bitacora/Licencia"/>
                                             <field name="estimado" readonly="0" />
                                             <field name="datefact" readonly="0" />
                                             <field name="is_invoiced" invisible="1" />
@@ -292,9 +276,9 @@
                                     </group>
                                 </sheet>
                                 <div class="oe_chatter">
-                                    <field name="message_follower_ids" />
-                                    <field name="activity_ids" />
-                                    <field name="message_ids" />
+                                    <field name="message_follower_ids"/>
+                                    <field name="activity_ids"/>
+                                    <field name="message_ids"/>
                                 </div>
                             </form>
                         </field>
@@ -303,42 +287,18 @@
             </field>
         </record>
 
-        <!-- Agregando filtros nuevo precargados -->
-        <record id="sale_order_search_inherit" model="ir.ui.view">
-            <field name="name">sale.order.search.inherit</field>
-            <field name="model">sale.order</field>
-            <field name="inherit_id" ref="sale.view_sales_order_filter" />
-            <field name="arch" type="xml">
-                <xpath expr="//filter[@name='my_sale_orders_filter']" position="before">
-                    <separator />
-                    <filter string="Por facturar" name="fact_por_facturar"
-                        domain="[('invoice_status', '=', 'to invoice')]" />
-                    <filter string="Facturado por completo" name="fact_facturado_compl"
-                        domain="[('invoice_status', '=', 'invoiced')]" />
-                    <filter string="Nada que facturar" name="fact_nada_fact"
-                        domain="[('invoice_status', '=', 'no')]" />
-                    <separator />
-                </xpath>
-            </field>
-        </record>
-
         <record id="action_control_obra_sales_orders" model="ir.actions.act_window">
             <field name="name">Órdenes de Venta</field>
             <field name="res_model">sale.order</field>
-            <field name="view_mode">tree,kanban,form,calendar,pivot,graph,activity</field>
-            <field name="domain">[('state', 'not in', ('draft', 'sent', 'cancel'))]</field>
-            <field name="view_ids"
-                eval="[(5, 0, 0),
-                (0, 0, {'sequence': 1, 'view_mode': 'tree'}),
-                (0, 0, {'sequence': 3, 'view_mode': 'form'}),
-            ]" />
+            <field name="view_mode">tree,form,kanban,calendar,pivot,graph,activity</field>
+            <field name="domain">[('state', 'in', ('sale', 'done', 'cancel'))]</field>
+            <field name="context">{'search_default_draft': 1}</field>
             <field name="help" type="html">
                 <p class="o_view_nocontent_smiling_face">
-                    Gestiona aquí las órdenes de venta confirmadas.
+                    Aún no hay órdenes de venta.
                 </p>
             </field>
         </record>
-
 
         <record id="action_control_obra_quotations" model="ir.actions.act_window">
             <field name="name">Cotizaciones</field>

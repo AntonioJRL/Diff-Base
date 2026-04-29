@@ -41,14 +41,14 @@
         id="menu_tareas_control_obra"
         action="open_task"
         parent="menu_control_obra_root"
-        sequence="3"
+        sequence="2"
     />
 
     <menuitem
         name="Ventas"
         id="menu_ventas_control_obra"
         parent="menu_control_obra_root"
-        sequence="4"
+        sequence="3"
     />
 
 
@@ -73,14 +73,14 @@
         name="Productos"
         parent="menu_ventas_control_obra"
         action="action_control_obra_products"
-        sequence="4" 
+        sequence="3" 
     />
 
     <menuitem
         name="Control"
         id="menu_control_obra"
         parent="menu_control_obra_root"
-        sequence="5"
+        sequence="4"
     />
 
     <menuitem
@@ -127,6 +127,24 @@
         groups="project_modificaciones.group_license_create"
     />
 
+    <menuitem
+        id="menu_pending_merge_request_user"
+        name="Mis Solicitudes de Fusión"
+        parent="menu_control_obra"
+        action="action_pending_merge_request_user"
+        sequence="6"
+        groups="project_modificaciones.group_pending_service_merge_requester"
+    />
+
+    <menuitem
+        id="menu_pending_merge_request"
+        name="Solicitudes de Fusión"
+        parent="menu_control_obra"
+        action="action_pending_merge_request_approver"
+        sequence="7"
+        groups="project_modificaciones.group_pending_service_merge_approver"
+    />
+
     <!-- Menú para Disciplinas -->
     <menuitem
         id="menu_disciplina"
@@ -141,7 +159,7 @@
         id="menu_avances_control_obra"
         parent="menu_control_obra_root"
         action="project_sub_update_action"
-        sequence="6"
+        sequence="5"
     />
 
     <!-- Inicio de Menú Reportes -->
@@ -160,5 +178,4 @@
         action="action_project_control_board"
         sequence="1"
     />
-
 </odoo>

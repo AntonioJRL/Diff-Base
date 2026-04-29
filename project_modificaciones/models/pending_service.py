@@ -1,5 +1,5 @@
 from odoo import models, fields, api, _
-from datetime import datetime, date
+from datetime import datetime
 from markupsafe import Markup
 from odoo.exceptions import ValidationError
 
@@ -12,8 +12,6 @@ class PendingService(models.Model):
     _name = 'pending.service'
     _description = 'Servicio Pendiente'
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    _check_company_auto = True
-    _rec_name = 'name'
 
     name = fields.Char(
         string="Nombre",
@@ -33,8 +31,7 @@ class PendingService(models.Model):
         'license.disciplina', string='Disciplina', required=True, tracking=True)
     service_line_ids = fields.One2many(
         'pending.service.line', 'service_id', string='Líneas de Servicio')
-    total = fields.Float(
-        string='Total', compute='_compute_total', store=True, tracking=True)
+    total = fields.Float(string='Total', compute='_compute_total', store=True, tracking=True)
     date = fields.Date(string='Fecha', default=datetime.today(), tracking=True)
     license_ids = fields.Many2many(
         'license.license', string='Licencias', tracking=True)
@@ -49,46 +46,6 @@ class PendingService(models.Model):
         string='Descripción del Servicio', tracking=True)  # Nuevo campo
     active = fields.Boolean(string='Activo', default=True,
                             tracking=True)  # Para archivar
-    
-    fusion_origen_id = fields.Many2one(
-        'pending.service',
-        string='Pendiente Origen Fusionado',
-        copy=False,
-        readonly=True,
-        tracking=True,
-    )
-    fusion_destino_id = fields.Many2one(
-        'pending.service',
-        string='Pendiente Destino Fusionado',
-        copy=False,
-        readonly=True,
-        tracking=True,
-    )
-
-    def action_sync_company_from_disciplina(self):
-        """Recalcula la empresa histórica desde la disciplina."""
-        if not self:
-            return True
-
-        pending_ids = self.filtered(lambda rec: rec.disciplina_id).ids
-        if not pending_ids:
-            return True
-
-        # Forzamos el valor almacenado de company_id a partir de la disciplina.
-        self.flush_model(['disciplina_id'])
-        self.env.cr.execute(
-            """
-            UPDATE pending_service AS p
-               SET company_id = d.company_id
-              FROM license_disciplina AS d
-             WHERE p.id = ANY(%s)
-               AND p.disciplina_id = d.id
-            """,
-            [pending_ids],
-        )
-        self.invalidate_recordset(['company_id'])
-        return True
-
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -107,17 +64,15 @@ class PendingService(models.Model):
 
                     # Extraer el prefijo del cliente
                     cliente_id = vals.get('cliente_servicio')
-                    prefix = 'INN'  # Default
+                    prefix = 'INN' # Default
                     if cliente_id:
                         cliente = self.env['res.partner'].browse(cliente_id)
                         if getattr(cliente, 'ref', False):
                             # Tomar primeras 3 letras de la Referencia, ignorando espacios y convirtiendo a mayúsculas
-                            prefix = ''.join(e for e in cliente.ref if e.isalnum())[
-                                :3].upper()
+                            prefix = ''.join(e for e in cliente.ref if e.isalnum())[:3].upper()
                         elif getattr(cliente, 'name', False):
                             # Fallback al nombre si no hay referencia
-                            prefix = ''.join(e for e in cliente.name if e.isalnum())[
-                                :3].upper()
+                            prefix = ''.join(e for e in cliente.name if e.isalnum())[:3].upper()
 
                     # Si el nombre base no es 'New', concatenarlo
                     if base_name != _('New'):
@@ -132,7 +87,7 @@ class PendingService(models.Model):
     def write(self, vals):
         # Lógica de consolidación de cambios en líneas para el chatter
         line_changes_summary = []
-
+        
         if 'service_line_ids' in vals:
             # Diccionario de etiquetas para el rastreo
             labels = {
@@ -146,51 +101,43 @@ class PendingService(models.Model):
                 if command[0] == 0:  # NUEVA LÍNEA
                     l_vals = command[2]
                     prod_id = l_vals.get('product_id')
-                    prod_name = self.env['product.product'].browse(
-                        prod_id).display_name if prod_id else _('N/A')
+                    prod_name = self.env['product.product'].browse(prod_id).display_name if prod_id else _('N/A')
                     qty = l_vals.get('quantity', 0)
                     price = l_vals.get('price_unit', 0)
-                    line_changes_summary.append(Markup(
-                        "<li><b>%s:</b> %s (%s x %s)</li>") % (_("Nueva línea"), prod_name, qty, price))
+                    line_changes_summary.append(Markup("<li><b>%s:</b> %s (%s x %s)</li>") % (_("Nueva línea"), prod_name, qty, price))
 
                 elif command[0] == 1:  # ACTUALIZACIÓN
                     line_id = command[1]
                     l_vals = command[2]
                     line = self.env['pending.service.line'].browse(line_id)
-
+                    
                     sub_msgs = []
                     for field, label in labels.items():
                         if field in l_vals:
                             old_val = line[field]
                             new_val_raw = l_vals[field]
-
+                            
                             if field == 'product_id':
-                                new_val = self.env['product.product'].browse(
-                                    new_val_raw)
+                                new_val = self.env['product.product'].browse(new_val_raw)
                                 if old_val.id != new_val.id:
-                                    sub_msgs.append(_("Producto: %s → %s") % (
-                                        old_val.display_name or _('N/A'), new_val.display_name or _('N/A')))
+                                    sub_msgs.append(_("Producto: %s → %s") % (old_val.display_name or _('N/A'), new_val.display_name or _('N/A')))
                             elif old_val != new_val_raw:
-                                sub_msgs.append(_("%s: %s → %s") % (
-                                    label, old_val, new_val_raw))
-
+                                sub_msgs.append(_("%s: %s → %s") % (label, old_val, new_val_raw))
+                    
                     if sub_msgs:
-                        line_changes_summary.append(Markup("<li><b>%s (Partida %s):</b> %s</li>") % (
-                            _("Modificación"), line.partida, ", ".join(sub_msgs)))
+                        line_changes_summary.append(Markup("<li><b>%s (Partida %s):</b> %s</li>") % (_("Modificación"), line.partida, ", ".join(sub_msgs)))
 
                 elif command[0] == 2:  # ELIMINACIÓN
                     line_id = command[1]
                     line = self.env['pending.service.line'].browse(line_id)
-                    line_changes_summary.append(Markup("<li><b>%s:</b> %s (Partida %s)</li>") % (
-                        _("Línea eliminada"), line.product_id.display_name or _('N/A'), line.partida))
+                    line_changes_summary.append(Markup("<li><b>%s:</b> %s (Partida %s)</li>") % (_("Línea eliminada"), line.product_id.display_name or _('N/A'), line.partida))
 
         # Ejecutar escritura normal
         res = super(PendingService, self).write(vals)
 
         # Publicar mensaje consolidado si hay cambios
         if line_changes_summary:
-            msg = Markup("<b>%s:</b><ul>%s</ul>") % (_("Resumen de cambios en líneas"),
-                                                     Markup().join(line_changes_summary))
+            msg = Markup("<b>%s:</b><ul>%s</ul>") % (_("Resumen de cambios en líneas"), Markup().join(line_changes_summary))
             self.message_post(body=msg)
 
         return res
@@ -226,10 +173,7 @@ class PendingService(models.Model):
         self.service_line_ids.unlink()
         return super(PendingService, self).unlink()
 
-    # -------------------------------------------------------------------------
-    # CONTROL DE OBRA
-    # Campos y acciones base del servicio pendiente.
-    # -------------------------------------------------------------------------
+    # Control de Obra
     cliente_servicio = fields.Many2one(
         'res.partner', string="Cliente", help="Cliente al que se realizara el servicio.", required=True, tracking=True)
 
@@ -243,6 +187,20 @@ class PendingService(models.Model):
 
     sale_order_count = fields.Integer(
         string='Órdenes de Venta', compute='_compute_sale_order_count')
+
+    scaffolding_count = fields.Integer(
+        string='Andamios', compute='_compute_scaffolding_count')
+
+    @api.depends('name','state')
+    def _compute_scaffolding_count(self):
+        for record in self:
+            # Buscar andamios relacionados a este servicio pendiente
+            if 'scaffolding.installation' in self.env:
+                record.scaffolding_count = self.env['scaffolding.installation'].search_count([
+                    ('pendiente', '=', record.id)
+                ])
+            else:
+                record.scaffolding_count = 0
 
     def action_view_scaffoldings(self):
         self.ensure_one()
@@ -259,6 +217,7 @@ class PendingService(models.Model):
             'domain': domain,
             'context': {'default_pendiente': self.id},
         }
+
 
     @api.depends('task_ids', 'service_line_ids.task_id')
     def _compute_task_count(self):
@@ -334,13 +293,13 @@ class PendingService(models.Model):
                     'partner_id': record.cliente_servicio.id,
                     'producto_relacionado': line.product_id.id,
                     'servicio_pendiente': record.id,
-                    'planned_date_begin': record.date_start,
-                    'date_deadline': record.date_end_plan,
+                    'planned_date_begin': record.date_start, #LOGICA UNIFICADA
+                    'date_deadline': record.date_end_plan, #LOGICA UNIFICADA
                 })
-
+                
                 # Link task to line persistently
                 line.task_id = task.id
-                created_tasks |= task
+                created_tasks |= task 
 
             # 3. NOTIFICACIÓN UI (Sin historial en chatter)
             if created_tasks:
@@ -441,11 +400,10 @@ class PendingService(models.Model):
                 'partner_id': record.cliente_servicio.id,
                 'analytic_account_id': record.supervisor_id.proyecto_supervisor.analytic_account_id.id,
                 'origin': record.name,
-                'company_id': record.company_id.id or self.env.company.id,
                 # Forzamos el proyecto en la orden si tienes campos personalizados
                 'project_id': record.supervisor_id.proyecto_supervisor.id,
-                'fecha_pedido': record.date_start,
-                'commitment_date': record.date_end_plan,
+                'fecha_pedido': record.date_start, # LOGICA UNIFICADA
+                'commitment_date': record.date_end_plan, # LOGICA UNIFICADA
             }
             # Solo asignar pending_service_id si hay tareas creadas
             if record.task_count > 0:
@@ -544,11 +502,56 @@ class PendingService(models.Model):
         string="Tarea Relacionada",
         help="Tarea relacionada con el pendiente."
     )
-    # -------------------------------------------------------------------------
-    # PROJECT CONTROL BOARD / KANBAN OPERATIVO
-    # Todo lo siguiente alimenta semaforos, etapas, fechas y metricas del
-    # tablero unificado de proyectos y de la vista kanban operativa.
-    # -------------------------------------------------------------------------
+
+    ###Logica Fusión de Pendientes##############################
+    operation_origin_log_ids = fields.One2many(
+        'pending.service.operation.log',
+        'origin_id',
+        string='Operaciones como Origen',
+    )
+    operation_destination_log_ids = fields.One2many(
+        'pending.service.operation.log',
+        'destination_id',
+        string='Operaciones como Destino',
+    )
+    operation_origin_count = fields.Integer(
+        string='Operaciones como Origen',
+        compute='_compute_operation_counts',
+    )
+    operation_destination_count = fields.Integer(
+        string='Operaciones como Destino',
+        compute='_compute_operation_counts',
+    )
+    active_merge_request_count = fields.Integer(
+        string='Solicitudes de Operación Activas',
+        compute='_compute_active_merge_requests',
+    )
+    has_active_merge_request = fields.Boolean(
+        string='Tiene Solicitud de Operación Activa',
+        compute='_compute_active_merge_requests',
+    )
+
+    def _compute_operation_counts(self):
+        log_model = self.env['pending.service.operation.log'].sudo()
+        for service in self:
+            service.operation_origin_count = log_model.search_count([('origin_id', '=', service.id)])
+            service.operation_destination_count = log_model.search_count([('destination_id', '=', service.id)])
+
+    def _compute_active_merge_requests(self):
+        request_model = self.env['pending.merge.request'].sudo()
+        active_states = request_model._active_request_states()
+        for service in self:
+            count = request_model.search_count([
+                ('state', 'in', active_states),
+                '|',
+                ('servicio_o', '=', service.id),
+                ('servicio_d', '=', service.id),
+            ])
+            service.active_merge_request_count = count
+            service.has_active_merge_request = bool(count)
+    ############################################################
+
+    ###Logica Vista Unificada###################################
     date_start = fields.Datetime(
         string='Inicio',
         tracking=True,
@@ -567,6 +570,30 @@ class PendingService(models.Model):
         store=False,
         help="Si hay retraso se recalcula esta fecha. Si supera Fin Plan se resalta en rojo.",
     )
+
+    def action_sync_company_from_disciplina(self):
+        """Recalcula la empresa histórica desde la disciplina."""
+        if not self:
+            return True
+
+        pending_ids = self.filtered(lambda rec: rec.disciplina_id).ids
+        if not pending_ids:
+            return True
+
+        # Forzamos el valor almacenado de company_id a partir de la disciplina.
+        self.flush_model(['disciplina_id'])
+        self.env.cr.execute(
+            """
+            UPDATE pending_service AS p
+               SET company_id = d.company_id
+              FROM license_disciplina AS d
+             WHERE p.id = ANY(%s)
+               AND p.disciplina_id = d.id
+            """,
+            [pending_ids],
+        )
+        self.invalidate_recordset(['company_id'])
+        return True
 
     @api.constrains('date_start', 'date_end_plan')
     def _validar_planeacion(self):
@@ -805,12 +832,15 @@ class PendingService(models.Model):
         index=True,
         help="La empresa se toma desde la disciplina para heredarla automáticamente en el servicio.",
     )
+    ############################################################
 
 
 class PendingServiceLine(models.Model):
     _name = 'pending.service.line'
     _description = 'Línea de Servicio Pendiente'
     _order = 'sequence, id'
+
+    ####Logica de Fusión de Servicios Pendientes##################################################################
     _rec_name = 'name'
 
     name = fields.Char(
@@ -818,7 +848,7 @@ class PendingServiceLine(models.Model):
         compute='_compute_name',
         store=True,
     )
-
+    # Calcula y guarda el valor del campo real name de cada línea.
     @api.depends('partida', 'service_id', 'service_id.name', 'product_id', 'product_id.display_name', 'quantity')
     def _compute_name(self):
         for line in self:
@@ -832,6 +862,46 @@ class PendingServiceLine(models.Model):
             if line.quantity:
                 partes.append(f"Qty {line.quantity}")
             line.name = " - ".join(partes) or f"Línea {line.id or ''}".strip()
+
+    # Devuelve cómo se muestra el registro al en una lista desplegables Many2one
+    def name_get(self):
+        result = []
+        for line in self:
+            partes = []
+            if line.partida:
+                partes.append("P%s" % line.partida)
+            if line.service_id:
+                partes.append(line.service_id.display_name)
+            if line.product_id:
+                partes.append(line.product_id.display_name)
+            if line.quantity:
+                partes.append("Qty %s" % line.quantity)
+            nombre = " - ".join(partes) or ("Línea %s" % line.id)
+            result.append((line.id, nombre))
+        return result
+    
+    def _sync_task_pending_pieces(self):
+        for line in self:
+            if line.task_id:
+                line.task_id.write({
+                    'piezas_pendientes': line.quantity,
+                })
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        lines = super().create(vals_list)
+        lines._sync_task_pending_pieces()
+        return lines
+
+    def write(self, vals):
+        res = super().write(vals)
+
+        if 'quantity' in vals or 'task_id' in vals:
+            self._sync_task_pending_pieces()
+
+        return res
+    ###########################################################################################################
+
 
     sequence = fields.Integer(string='Secuencia', default=10)
     partida = fields.Integer(
@@ -856,8 +926,7 @@ class PendingServiceLine(models.Model):
                         line.task_id.name = new_name
 
     service_id = fields.Many2one(
-        'pending.service', string='Servicio Pendiente', required=True, index=True
-    )
+        'pending.service', string='Servicio Pendiente', required=True)
     product_id = fields.Many2one(
         'product.product', string='Producto', required=True)
     quantity = fields.Float(string='Cantidad', required=True)
@@ -867,9 +936,8 @@ class PendingServiceLine(models.Model):
 
     # Campo para la tarea asociada (se setea cuando se crea la tarea)
     task_id = fields.Many2one(
-        'project.task', string='Tarea Asociada', copy=False, index=True
-    )
-
+        'project.task', string='Tarea Asociada', copy=False)
+        
     precio_estimado = fields.Boolean(
         string='¿Precio Estimado?', default=False,
         help="Indica si el precio unitario ingresado es una estimación en lugar de un valor cotizado en sistema."
@@ -893,7 +961,7 @@ class PendingServiceLine(models.Model):
     @api.depends('product_id')
     def _compute_price_unit(self):
         for line in self:
-            if not line.precio_estimado:  # Si no está marcado como estimado temporal
+            if not line.precio_estimado: # Si no está marcado como estimado temporal
                 if line.product_id:
                     # Use lst_price to get the variant's specific price (including extra charges)
                     line.price_unit = line.product_id.lst_price
@@ -920,19 +988,3 @@ class PendingServiceLine(models.Model):
     def _compute_total(self):
         for line in self:
             line.total = line.quantity * line.price_unit
-
-    def name_get(self):
-        result = []
-        for line in self:
-            partes = []
-            if line.partida:
-                partes.append("P%s" % line.partida)
-            if line.service_id:
-                partes.append(line.service_id.display_name)
-            if line.product_id:
-                partes.append(line.product_id.display_name)
-            if line.quantity:
-                partes.append("Qty %s" % line.quantity)
-            nombre = " - ".join(partes) or ("Línea %s" % line.id)
-            result.append((line.id, nombre))
-        return result

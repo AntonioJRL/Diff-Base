@@ -9,9 +9,7 @@
 
                 <xpath expr="//field[@name='vat']" position="after">
                     <field name="tipo_contacto" widget="radio" options="{'horizontal': true}" />
-                    <field name="cliente_obra" widget="boolean_toggle" />
                 </xpath>
-                
             </field>
         </record>
     </data>

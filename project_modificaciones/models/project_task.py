@@ -1,23 +1,14 @@
+from odoo import fields, models, api, _
+from markupsafe import Markup
+from odoo.exceptions import ValidationError
 import json
 import logging
-from markupsafe import Markup
-from datetime import datetime
-from odoo import fields, models, api, _
-from odoo.exceptions import ValidationError
 
 _logger = logging.getLogger(__name__)
 
 
 class Task(models.Model):
     _inherit = 'project.task'
-
-    planned_date_begin = fields.Datetime(
-        string="Start date",
-        related="date_assign",
-        store=True,
-        readonly=False,
-        help="Compatibilidad para módulos que esperan una fecha de inicio planeada en project.task.",
-    )
 
     """
     sale_line_id = fields.Many2one(
@@ -31,6 +22,8 @@ class Task(models.Model):
         domain="[('is_service', '=', True), ('is_expense', '=', False), ('state', 'in', ['sale', 'done']), ('order_partner_id', '=?', partner_id), '|', ('company_id', '=', False), ('company_id', '=', company_id)]",
         help="Sales order line linked to this task. Used to synchronize progress with the sale order line."
     )"""
+
+
 
     project_id = fields.Many2one(tracking=True)
 
@@ -94,8 +87,7 @@ class Task(models.Model):
     )
 
     # Contadores rápidos
-    expense_count = fields.Integer(
-        string="Cant. Gastos", compute="_compute_counts")
+    expense_count = fields.Integer(string="Cant. Gastos", compute="_compute_counts")
     purchase_count = fields.Integer(
         string="Cant. Compras", compute="_compute_counts")
     requisition_count = fields.Integer(
@@ -145,31 +137,40 @@ class Task(models.Model):
             moved_qty_per_product = {}
             for move in moves:
                 qty = move.quantity
-                moved_qty_per_product[move.product_id.id] = moved_qty_per_product.get(
-                    move.product_id.id, 0.0) + qty
+                moved_qty_per_product[move.product_id.id] = moved_qty_per_product.get(move.product_id.id, 0.0) + qty
 
             # 2. Obtener cantidades compradas por producto (Solo Confirmadas)
             purchased_qty_per_product = {}
-            purchase_lines = task.purchase_line_ids.filtered(
-                lambda line: line.order_id.state in ['purchase', 'done']
-            )
+            purchase_lines = self.env['purchase.order.line'].search([
+                ('task_id', '=', task.id),
+                ('order_id.state', 'in', ['purchase', 'done'])
+            ])
             for line in purchase_lines:
-                purchased_qty_per_product[line.product_id.id] = purchased_qty_per_product.get(
-                    line.product_id.id, 0.0) + line.product_qty
+                purchased_qty_per_product[line.product_id.id] = purchased_qty_per_product.get(line.product_id.id, 0.0) + line.product_qty
 
             # 3. Lógica de Cobro Neto
             for product_id, moved_qty in moved_qty_per_product.items():
                 purchased_qty = purchased_qty_per_product.get(product_id, 0.0)
                 chargeable_qty = max(0.0, moved_qty - purchased_qty)
                 if chargeable_qty > 0:
-                    move_product = moves.filtered(lambda move: move.product_id.id == product_id)[:1].product_id
-                    cost += chargeable_qty * (move_product.standard_price or 0.0)
+                    product = task.env['product.product'].browse(product_id)
+                    cost += chargeable_qty * product.standard_price
 
             task.stock_move_cost = cost
 
     # ---------------------------------------------------------------------
     # Sync task progress with linked Sale Order Line
     # ---------------------------------------------------------------------
+    def write(self, vals):
+        """Override write to propagate task progress to the linked sale order line.
+        If the task has a `sale_line_id` (Many2one to `sale.order.line`), we update the
+        `qty_delivered` on that line based on the task's `quant_progress` (units completed).
+        This ensures that any change in task progress (or linking a line) is reflected
+        immediately on the sales order.
+        """
+        res = super(Task, self).write(vals)
+        return res
+
     def action_link_sale_line(self):
         """Placeholder method for the "Vincular línea" button.
         Currently does nothing but returns True to avoid errors.
@@ -343,29 +344,30 @@ class Task(models.Model):
         for u in self:
             u.invoiced = u.qty_invoiced * u.price_unit
 
-    @api.depends("sub_update_ids")
+    @api.model
     def _d_update(self):
-        for task in self:
-            updates = task.sub_update_ids.sorted(
-                key=lambda update: update.write_date or update.create_date or fields.Datetime.now(),
-                reverse=True,
+        for u in self:
+            # Cambio de modelo para consistencia
+            u.sub_d_update = u.env["project.sub.update"].search(
+                [("project_id.id", "=", u.project_id.id), ("task_id.id", "=", u.id)],
+                limit=1,
             )
-            task.sub_d_update = updates[:1]
 
     @api.model
     def _check_to_recompute(self):
-        """Stub auxiliar. Devuelve los IDs del recordset actual para recompute externo."""
-        return self.ids
+        return [id]
 
     @api.depends("sub_update_ids")
     def _last_update(self):
-        for task in self:
-            if not task.id:
+        for u in self:
+            if not u.id:
                 continue
-            task.sub_update = task.sub_update_ids.sorted(
-                key=lambda update: update.write_date or update.create_date or fields.Datetime.now(),
-                reverse=True,
-            )[:1]
+            # Cambio de modelo para consistencia
+            u.sub_update = u.env["project.sub.update"].search(
+                [("project_id.id", "=", u.project_id.id), ("task_id.id", "=", u.id)],
+                order="id desc",
+                limit=1,
+            )
 
     @api.depends(
         "sub_update_ids",
@@ -539,7 +541,401 @@ class Task(models.Model):
         new_dist[str_new_id] = new_dist.get(str_new_id, 0.0) + percentage
 
         return new_dist
+    
+    # Metodos Independientes para mover documentos relacionados a la tarea, funciona para fusion de pendientes y cambio de proyecto en la tarea.
+    def _find_or_create_project_update(self, project, update_date, fallback_name=None, warning_message=None):
+        self.ensure_one()
+        project_update = self.env['project.update'].search([
+            ('project_id', '=', project.id),
+            ('date', '=', update_date),
+        ], limit=1)
 
+        if project_update:
+            return project_update
+
+        try:
+            return self.env['project.update'].create({
+                'project_id': project.id,
+                'name': fallback_name or _('Actualización Transferida'),
+                'date': update_date,
+                'user_id': self.env.user.id,
+                'status': 'on_track',
+            })
+        except Exception as exc:
+            _logger.warning(warning_message or "No se pudo crear project.update: %s", exc)
+            return False
+
+    def _relocate_sub_updates(
+        self,
+        target_project,
+        target_task=None,
+        pending_service=False,
+        pending_service_line=False,
+        cleanup_empty_updates=False,
+        warning_message=None,
+    ):
+        self.ensure_one()
+        moved_count = len(self.sub_update_ids)
+        if not self.sub_update_ids:
+            return moved_count
+
+        source_updates = self.sub_update_ids.mapped('update_id') if cleanup_empty_updates else self.env['project.update']
+        avances_by_date = {}
+        for avance in self.sub_update_ids:
+            avance_date = avance.date or fields.Date.today()
+            if avance_date not in avances_by_date:
+                avances_by_date[avance_date] = self.env['project.sub.update']
+            avances_by_date[avance_date] |= avance
+
+        for update_date, avances in avances_by_date.items():
+            fallback_name = avances[0].update_id.name if avances and avances[0].update_id else _('Actualización Transferida')
+            project_update = self._find_or_create_project_update(
+                project=target_project,
+                update_date=update_date,
+                fallback_name=fallback_name,
+                warning_message=warning_message,
+            )
+            vals_avance = {
+                'project_id': target_project.id,
+                'update_id': project_update.id if project_update else False,
+            }
+            if target_task:
+                vals_avance['task_id'] = target_task.id
+            if pending_service:
+                vals_avance['pending_service_id'] = pending_service.id
+            if pending_service_line:
+                vals_avance['pending_service_line_id'] = pending_service_line.id
+            avances.write(vals_avance)
+
+        if cleanup_empty_updates:
+            for old_update in source_updates:
+                count_remaining = self.env['project.sub.update'].search_count([
+                    ('update_id', '=', old_update.id)
+                ])
+                if count_remaining == 0:
+                    old_update.sudo().unlink()
+
+        return moved_count
+
+    def _relocate_expenses(
+        self,
+        target_project,
+        target_task=None,
+        old_analytic=None,
+        new_analytic=None,
+        use_sql_for_locked=False,
+    ):
+        self.ensure_one()
+        if 'expense_ids' not in self._fields:
+            return 0
+
+        all_expenses = self.expense_ids.filtered(lambda expense: expense.state not in ['done', 'refused'])
+        if not all_expenses:
+            return 0
+
+        target_task_id = target_task.id if target_task else False
+
+        if not use_sql_for_locked:
+            for expense in all_expenses.sudo():
+                vals_expense = {'project_id': target_project.id}
+                if target_task_id and 'task_id' in expense._fields:
+                    vals_expense['task_id'] = target_task_id
+                if new_analytic and 'analytic_distribution' in expense._fields:
+                    vals_expense['analytic_distribution'] = self._get_updated_analytic_distribution(
+                        expense.analytic_distribution, new_analytic.id, old_analytic.id if old_analytic else False
+                    )
+                expense.write(vals_expense)
+            return len(all_expenses)
+
+        expenses_free = all_expenses.filtered(
+            lambda expense: not expense.sheet_id or expense.sheet_id.state in ['draft', 'submit']
+        )
+        expenses_locked = all_expenses - expenses_free
+
+        if expenses_free:
+            if new_analytic:
+                for expense in expenses_free:
+                    vals_expense = {
+                        'project_id': target_project.id,
+                        'analytic_distribution': self._get_updated_analytic_distribution(
+                            expense.analytic_distribution, new_analytic.id, old_analytic.id if old_analytic else False
+                        ),
+                    }
+                    if target_task_id and 'task_id' in expense._fields:
+                        vals_expense['task_id'] = target_task_id
+                    expense.sudo().write(vals_expense)
+            else:
+                vals_expense = {'project_id': target_project.id}
+                if target_task_id:
+                    vals_expense['task_id'] = target_task_id
+                expenses_free.sudo().write(vals_expense)
+
+        if expenses_locked:
+            for expense in expenses_locked:
+                if new_analytic:
+                    json_dist = json.dumps(self._get_updated_analytic_distribution(
+                        expense.analytic_distribution, new_analytic.id, old_analytic.id if old_analytic else False
+                    ))
+                    self.env.cr.execute(
+                        """
+                        UPDATE hr_expense
+                        SET project_id = %s,
+                            analytic_distribution = %s::jsonb
+                        WHERE id = %s
+                        """,
+                        (target_project.id, json_dist, expense.id)
+                    )
+                else:
+                    self.env.cr.execute(
+                        """
+                        UPDATE hr_expense
+                        SET project_id = %s
+                        WHERE id = %s
+                        """,
+                        (target_project.id, expense.id)
+                    )
+            expenses_locked.invalidate_recordset(['project_id', 'analytic_distribution'])
+
+        return len(all_expenses)
+
+    def _relocate_purchase_documents(
+        self,
+        target_project,
+        target_task=None,
+        old_analytic=None,
+        new_analytic=None,
+        update_order_task=False,
+    ):
+        self.ensure_one()
+        target_task_id = target_task.id if target_task else False
+        purchase_orders = self.env['purchase.order'].search([
+            ('task_order_id', '=', self.id),
+            ('state', '!=', 'cancel'),
+        ])
+
+        if purchase_orders:
+            purchase_order_vals = {'project_id': target_project.id}
+            if update_order_task and target_task_id:
+                purchase_order_vals['task_order_id'] = target_task_id
+            purchase_orders.write(purchase_order_vals)
+
+            lines_to_update = purchase_orders.mapped('order_line').filtered(lambda line: line.state != 'cancel')
+            if lines_to_update:
+                vals_line = {'project_id': target_project.id}
+                if target_task_id:
+                    vals_line['task_id'] = target_task_id
+                if new_analytic:
+                    for line in lines_to_update:
+                        line_vals = vals_line.copy()
+                        line_vals['analytic_distribution'] = self._get_updated_analytic_distribution(
+                            line.analytic_distribution, new_analytic.id, old_analytic.id if old_analytic else False
+                        )
+                        line.write(line_vals)
+                else:
+                    lines_to_update.write(vals_line)
+
+            pickings = purchase_orders.mapped('picking_ids').filtered(lambda picking: picking.state != 'cancel')
+            if pickings:
+                picking_vals = {'project_id': target_project.id}
+                if target_task_id:
+                    picking_vals['task_id'] = target_task_id
+                pickings.write(picking_vals)
+
+                moves = pickings.mapped('move_ids').filtered(lambda move: move.state != 'cancel')
+                if moves:
+                    move_vals = {'project_id': target_project.id}
+                    if target_task_id:
+                        move_vals['task_id'] = target_task_id
+                    moves.write(move_vals)
+
+        if 'purchase_line_ids' in self._fields:
+            processed_orders = purchase_orders.ids if purchase_orders else []
+            purchase_lines = self.purchase_line_ids.filtered(
+                lambda line: line.state not in ['cancel', 'done'] and line.order_id.id not in processed_orders
+            )
+            if purchase_lines:
+                vals_line = {'project_id': target_project.id}
+                if target_task_id:
+                    vals_line['task_id'] = target_task_id
+                if new_analytic:
+                    for line in purchase_lines:
+                        curr_vals = vals_line.copy()
+                        curr_vals['analytic_distribution'] = self._get_updated_analytic_distribution(
+                            line.analytic_distribution, new_analytic.id, old_analytic.id if old_analytic else False
+                        )
+                        line.write(curr_vals)
+                else:
+                    purchase_lines.write(vals_line)
+
+        return len(purchase_orders)
+
+    def _relocate_timesheets(self, target_project, target_task=None):
+        self.ensure_one()
+        if 'timesheet_ids' not in self._fields:
+            return 0
+
+        timesheets_model = self.env['account.analytic.line']
+        if 'timesheet_invoice_id' in timesheets_model._fields:
+            timesheets = self.timesheet_ids.filtered(lambda timesheet: not timesheet.timesheet_invoice_id)
+        else:
+            timesheets = self.timesheet_ids
+
+        if not timesheets:
+            return 0
+
+        vals = {'project_id': target_project.id}
+        if target_task and 'task_id' in timesheets._fields:
+            vals['task_id'] = target_task.id
+        sale_line = target_task.sale_line_id if target_task else self.sale_line_id
+        if sale_line and 'so_line' in timesheets._fields:
+            vals['so_line'] = sale_line.id
+        timesheets.write(vals)
+        return len(timesheets)
+
+    def _relocate_stock_moves(self, target_project, target_task=None):
+        self.ensure_one()
+        if 'stock_move_ids' not in self._fields or not self.stock_move_ids:
+            return 0
+
+        vals = {'project_id': target_project.id}
+        if target_task and 'task_id' in self.stock_move_ids._fields:
+            vals['task_id'] = target_task.id
+        self.stock_move_ids.write(vals)
+        return len(self.stock_move_ids)
+
+    def _relocate_requisitions(
+        self,
+        target_project,
+        target_task=None,
+        old_analytic=None,
+        new_analytic=None,
+        update_line_analytic=False,
+    ):
+        self.ensure_one()
+        if 'requisition_ids' not in self._fields:
+            return 0
+
+        requisitions = self.requisition_ids.filtered(lambda req: req.state != 'cancel')
+        for req in requisitions:
+            req_vals = {}
+            if target_task and 'task_id' in req._fields:
+                req_vals['task_id'] = target_task.id
+            if 'project_id' in req._fields:
+                req_vals['project_id'] = target_project.id
+            if 'analytic_distribution' in req._fields and new_analytic:
+                req_vals['analytic_distribution'] = self._get_updated_analytic_distribution(
+                    getattr(req, 'analytic_distribution', {}), new_analytic.id, old_analytic.id if old_analytic else False
+                )
+            if req_vals:
+                req.write(req_vals)
+
+            if hasattr(req, 'requisition_order_ids') and req.requisition_order_ids:
+                line_vals = {}
+                if 'project_id' in self.env['requisition.order']._fields:
+                    line_vals['project_id'] = target_project.id
+                if line_vals:
+                    req.requisition_order_ids.write(line_vals)
+
+                if update_line_analytic and 'analytic_distribution' in self.env['requisition.order']._fields and new_analytic:
+                    for req_line in req.requisition_order_ids:
+                        req_line.write({
+                            'analytic_distribution': self._get_updated_analytic_distribution(
+                                req_line.analytic_distribution, new_analytic.id, old_analytic.id if old_analytic else False
+                            )
+                        })
+
+        return len(requisitions)
+
+    def _relocate_auxiliary_task_models(self, target_project, target_task=None):
+        self.ensure_one()
+        moved = {
+            'regularizaciones': 0,
+            'compensaciones': 0,
+        }
+        target_task_id = target_task.id if target_task else False
+
+        attendance_model = self.env.get('attendance.regularization')
+        if attendance_model is not None and 'task_id' in attendance_model._fields:
+            attendance_recs = attendance_model.search([('task_id', '=', self.id)])
+            if attendance_recs:
+                moved['regularizaciones'] = len(attendance_recs)
+                vals_att = {}
+                if target_task_id:
+                    vals_att['task_id'] = target_task_id
+                if 'project_id' in attendance_model._fields:
+                    vals_att['project_id'] = target_project.id
+                if vals_att:
+                    attendance_recs.write(vals_att)
+
+        comp_line_model = self.env.get('compensation.line')
+        if comp_line_model is not None and 'task_id' in comp_line_model._fields:
+            comp_lines = comp_line_model.search([('task_id', '=', self.id)])
+            if comp_lines:
+                moved['compensaciones'] = len(comp_lines)
+                vals_comp = {}
+                if target_task_id:
+                    vals_comp['task_id'] = target_task_id
+                if 'project_id' in comp_line_model._fields:
+                    vals_comp['project_id'] = target_project.id
+                if vals_comp:
+                    comp_lines.write(vals_comp)
+
+                if not target_task:
+                    for req in comp_lines.mapped('compensation_id'):
+                        if 'unique_project' in req._fields and 'service' in req._fields and req.unique_project and req.service != target_project:
+                            req.write({'service': target_project.id})
+
+        return moved
+
+    def _recompute_progress_after_project_change(self):
+        self.ensure_one()
+        self.env['project.sub.update'].invalidate_model()
+        self.invalidate_recordset()
+
+        self._units()
+        current_quant = self.quant_progress
+        total_qty = 0.0
+        if self.sale_line_id:
+            total_qty = self.env['sale.order.line'].browse(self.sale_line_id.id).product_uom_qty
+
+        new_progress = 0
+        new_pct = 0.0
+        if total_qty > 0 and current_quant > 0:
+            new_progress_float = (current_quant / total_qty) * 100
+            new_progress = min(100, int(new_progress_float))
+            new_pct = new_progress_float / 100.0
+
+        self.sudo().write({
+            'progress': new_progress,
+            'progress_percentage': new_pct
+        })
+
+    def _sync_sale_order_project_after_task_move(self, old_project, new_project, sale_order):
+        self.ensure_one()
+        if not sale_order or sale_order.project_id != old_project:
+            return
+
+        tasks_remaining_all = self.with_context(active_test=False).search_count([
+            ('project_id', '=', old_project.id),
+            ('sale_order_id', '=', sale_order.id)
+        ])
+        if tasks_remaining_all == 0:
+            sale_order.sudo().write({'project_id': new_project.id})
+            return
+
+        active_tasks = self.search_count([
+            ('project_id', '=', old_project.id),
+            ('sale_order_id', '=', sale_order.id)
+        ])
+        if active_tasks == 0 and tasks_remaining_all > 0:
+            archived_tasks = self.with_context(active_test=False).search([
+                ('project_id', '=', old_project.id),
+                ('sale_order_id', '=', sale_order.id)
+            ])
+            archived_tasks.write({'project_id': new_project.id})
+            sale_order.sudo().write({'project_id': new_project.id})
+    
+    # Logica de Fusión: Absorbe la tarea dentro de otro y migra avances/documentos relacionados.
     def merge_into_task(self, target_task, pending_service=False, pending_service_line=False):
         self.ensure_one()
         if not target_task or self == target_task:
@@ -567,169 +963,44 @@ class Task(models.Model):
                 _("La tarea destino '%s' no tiene proyecto asignado.") % target_task.display_name
             )
 
-        # 1. Avances y project.update por fecha
-        if self.sub_update_ids:
-            avances_by_date = {}
-            for avance in self.sub_update_ids:
-                avance_date = avance.date or fields.Date.today()
-                if avance_date not in avances_by_date:
-                    avances_by_date[avance_date] = self.env['project.sub.update']
-                avances_by_date[avance_date] |= avance
-
-            for p_date, avances in avances_by_date.items():
-                existing_update = self.env['project.update'].search([
-                    ('project_id', '=', new_project.id),
-                    ('date', '=', p_date),
-                ], limit=1)
-
-                if not existing_update:
-                    update_name = avances[0].update_id.name if avances and avances[0].update_id else _('Actualización Transferida')
-                    try:
-                        existing_update = self.env['project.update'].create({
-                            'project_id': new_project.id,
-                            'name': update_name,
-                            'date': p_date,
-                            'user_id': self.env.user.id,
-                            'status': 'on_track',
-                        })
-                    except Exception as exc:
-                        _logger.warning("No se pudo crear project.update destino durante fusión: %s", exc)
-                        existing_update = False
-
-                vals_avance = {
-                    'task_id': target_task.id,
-                    'project_id': new_project.id,
-                    'update_id': existing_update.id if existing_update else False,
-                }
-                if pending_service:
-                    vals_avance['pending_service_id'] = pending_service.id
-                if pending_service_line:
-                    vals_avance['pending_service_line_id'] = pending_service_line.id
-                avances.write(vals_avance)
-
-        # 2. Gastos
-        if 'expense_ids' in self._fields:
-            all_expenses = self.expense_ids.filtered(lambda e: e.state not in ['done', 'refused'])
-            for expense in all_expenses.sudo():
-                vals_expense = {
-                    'task_id': target_task.id,
-                    'project_id': new_project.id,
-                }
-                if new_analytic and 'analytic_distribution' in expense._fields:
-                    vals_expense['analytic_distribution'] = self._get_updated_analytic_distribution(
-                        expense.analytic_distribution, new_analytic.id, old_analytic.id if old_analytic else False
-                    )
-                expense.write(vals_expense)
-
-        # 3. Compras, albaranes y movimientos
-        purchase_orders = self.env['purchase.order'].search([
-            ('task_order_id', '=', self.id),
-            ('state', '!=', 'cancel'),
-        ])
-        if purchase_orders:
-            moved['compras'] += len(purchase_orders)
-            purchase_orders.write({
-                'task_order_id': target_task.id,
-                'project_id': new_project.id,
-            })
-            for line in purchase_orders.mapped('order_line').filtered(lambda l: l.state != 'cancel'):
-                vals_line = {
-                    'task_id': target_task.id,
-                    'project_id': new_project.id,
-                }
-                if new_analytic and 'analytic_distribution' in line._fields:
-                    vals_line['analytic_distribution'] = self._get_updated_analytic_distribution(
-                        line.analytic_distribution, new_analytic.id, old_analytic.id if old_analytic else False
-                    )
-                line.write(vals_line)
-            pickings = purchase_orders.mapped('picking_ids').filtered(lambda p: p.state != 'cancel')
-            if pickings:
-                pickings.write({'task_id': target_task.id, 'project_id': new_project.id})
-                pickings.mapped('move_ids').filtered(lambda m: m.state != 'cancel').write({
-                    'task_id': target_task.id,
-                    'project_id': new_project.id,
-                })
-
-        if 'purchase_line_ids' in self._fields:
-            loose_lines = self.purchase_line_ids.filtered(
-                lambda l: l.state not in ['cancel', 'done'] and l.order_id not in purchase_orders
-            )
-            for line in loose_lines:
-                vals_line = {
-                    'task_id': target_task.id,
-                    'project_id': new_project.id,
-                }
-                if new_analytic and 'analytic_distribution' in line._fields:
-                    vals_line['analytic_distribution'] = self._get_updated_analytic_distribution(
-                        line.analytic_distribution, new_analytic.id, old_analytic.id if old_analytic else False
-                    )
-                line.write(vals_line)
-
-        # 4. Timesheets
-        if 'timesheet_ids' in self._fields:
-            timesheets_model = self.env['account.analytic.line']
-            if 'timesheet_invoice_id' in timesheets_model._fields:
-                timesheets = self.timesheet_ids.filtered(lambda t: not t.timesheet_invoice_id)
-            else:
-                timesheets = self.timesheet_ids
-            if timesheets:
-                moved['horas'] = len(timesheets)
-                ts_vals = {
-                    'task_id': target_task.id,
-                    'project_id': new_project.id,
-                }
-                if target_task.sale_line_id and 'so_line' in timesheets._fields:
-                    ts_vals['so_line'] = target_task.sale_line_id.id
-                timesheets.write(ts_vals)
-
-        # 5. Stock moves directos
-        if 'stock_move_ids' in self._fields and self.stock_move_ids:
-            self.stock_move_ids.write({
-                'task_id': target_task.id,
-                'project_id': new_project.id,
-            })
-
-        # 6. Requisiciones
-        if 'requisition_ids' in self._fields:
-            for req in self.requisition_ids.filtered(lambda r: r.state != 'cancel'):
-                req_vals = {}
-                if 'task_id' in req._fields:
-                    req_vals['task_id'] = target_task.id
-                if 'project_id' in req._fields:
-                    req_vals['project_id'] = new_project.id
-                if 'analytic_distribution' in req._fields and new_analytic:
-                    req_vals['analytic_distribution'] = self._get_updated_analytic_distribution(
-                        getattr(req, 'analytic_distribution', {}), new_analytic.id, old_analytic.id if old_analytic else False
-                    )
-                if req_vals:
-                    req.write(req_vals)
-                if hasattr(req, 'requisition_order_ids') and req.requisition_order_ids:
-                    line_vals = {}
-                    if 'project_id' in self.env['requisition.order']._fields:
-                        line_vals['project_id'] = new_project.id
-                    if line_vals:
-                        req.requisition_order_ids.write(line_vals)
-
-        # 7. Otros modelos auxiliares
-        attendance_model = self.env.get('attendance.regularization')
-        if attendance_model is not None and 'task_id' in attendance_model._fields:
-            attendance_recs = attendance_model.search([('task_id', '=', self.id)])
-            if attendance_recs:
-                moved['regularizaciones'] = len(attendance_recs)
-                vals_att = {'task_id': target_task.id}
-                if 'project_id' in attendance_model._fields:
-                    vals_att['project_id'] = new_project.id
-                attendance_recs.write(vals_att)
-
-        comp_line_model = self.env.get('compensation.line')
-        if comp_line_model is not None and 'task_id' in comp_line_model._fields:
-            comp_lines = comp_line_model.search([('task_id', '=', self.id)])
-            if comp_lines:
-                moved['compensaciones'] = len(comp_lines)
-                vals_comp = {'task_id': target_task.id}
-                if 'project_id' in comp_line_model._fields:
-                    vals_comp['project_id'] = new_project.id
-                comp_lines.write(vals_comp)
+        moved['avances'] = self._relocate_sub_updates(
+            target_project=new_project,
+            target_task=target_task,
+            pending_service=pending_service,
+            pending_service_line=pending_service_line,
+            warning_message="No se pudo crear project.update destino durante fusión: %s",
+        )
+        moved['gastos'] = self._relocate_expenses(
+            target_project=new_project,
+            target_task=target_task,
+            old_analytic=old_analytic,
+            new_analytic=new_analytic,
+        )
+        moved['compras'] = self._relocate_purchase_documents(
+            target_project=new_project,
+            target_task=target_task,
+            old_analytic=old_analytic,
+            new_analytic=new_analytic,
+            update_order_task=True,
+        )
+        moved['horas'] = self._relocate_timesheets(
+            target_project=new_project,
+            target_task=target_task,
+        )
+        moved['mov_almacen'] = self._relocate_stock_moves(
+            target_project=new_project,
+            target_task=target_task,
+        )
+        moved['requisiciones'] = self._relocate_requisitions(
+            target_project=new_project,
+            target_task=target_task,
+            old_analytic=old_analytic,
+            new_analytic=new_analytic,
+        )
+        moved.update(self._relocate_auxiliary_task_models(
+            target_project=new_project,
+            target_task=target_task,
+        ))
 
         return {
             'target_task': target_task,
@@ -774,80 +1045,11 @@ class Task(models.Model):
                         task.write({'analytic_account_id': new_analytic.id})
 
                     # === B) MOVER AVANCES CON LOGICA DE PROJECT.UPDATE ===
-                    if task.sub_update_ids:
-                        # 0. Capturar los updates de origen para verificar limpieza posterior
-                        source_updates = task.sub_update_ids.mapped(
-                            'update_id')
-
-                        # 1. Agrupar avances por fecha para procesar en lote
-                        avances_by_date = {}
-                        for avance in task.sub_update_ids:
-                            # Usamos la fecha del avance o fallback a hoy
-                            avance_date = avance.date or fields.Date.today()
-                            if avance_date not in avances_by_date:
-                                avances_by_date[avance_date] = self.env['project.sub.update']
-                            avances_by_date[avance_date] |= avance
-
-                        # 2. Iterar por cada grupo de fecha
-                        for p_date, avances in avances_by_date.items():
-                            # Buscar una actualización existente en el NUEVO PROYECTO con la misma fecha
-                            # Asumimos que la comparación es por fecha (date)
-                            existing_update = self.env['project.update'].search([
-                                ('project_id', '=', new_project.id),
-                                ('date', '=', p_date)
-                            ], limit=1)
-
-                            if not existing_update:
-                                # Si no existe, la CREAMOS
-                                # Intentamos preservar el nombre de la actualización original si es posible
-                                original_update_name = _(
-                                    'Actualización Transferida')
-                                # Tomamos el nombre del update del primer avance si existe
-                                if avances and (valid_update_id := avances[0].update_id):
-                                    original_update_name = valid_update_id.name
-
-                                try:
-                                    existing_update = self.env['project.update'].create({
-                                        'project_id': new_project.id,
-                                        'name': original_update_name,
-                                        'date': p_date,
-                                        'user_id': self.env.user.id,
-                                        # Status por defecto (ej. on_track) suele ser requerido o tener default
-                                        'status': 'on_track'
-                                    })
-                                    _logger.info(
-                                        "Creado nuevo Project Update %s en proyecto %s para fecha %s",
-                                        existing_update.name, new_project.name, p_date
-                                    )
-                                except Exception as e:
-                                    _logger.warning(
-                                        "No se pudo crear project.update automático: %s. Los avances se moverán sin update_id.", str(e))
-                                    existing_update = False
-
-                            # 3. Mover los avances y asignarlos al update encontrado/creado
-                            vals_avance = {'project_id': new_project.id}
-                            if existing_update:
-                                vals_avance['update_id'] = existing_update.id
-                            else:
-                                # CRÍTICO: Si no se pudo crear el update nuevo, DESVINCULAR del viejo
-                                # para evitar que apunten a un update de otro proyecto.
-                                vals_avance['update_id'] = False
-
-                            avances.write(vals_avance)
-
-                        # 4. Limpieza: Eliminar updates de origen que quedaron vacíos
-                        for old_update in source_updates:
-                            # Contamos si quedan avances vinculados
-                            # Nota: update_id es el campo Many2one en project.sub.update hacia project.update
-                            # Asumimos que existe un One2many en project.update o buscamos inversamente
-                            # Normalmente no hay One2many por defecto de sub.update en project.update salvo personalizacion
-                            # Buscamos count directo
-                            count_remaining = self.env['project.sub.update'].search_count(
-                                [('update_id', '=', old_update.id)])
-                            if count_remaining == 0:
-                                _logger.info(
-                                    "Eliminando Project Update vacío tras mudanza: %s (ID: %s)", old_update.name, old_update.id)
-                                old_update.sudo().unlink()
+                    task._relocate_sub_updates(
+                        target_project=new_project,
+                        cleanup_empty_updates=True,
+                        warning_message="No se pudo crear project.update automático: %s. Los avances se moverán sin update_id.",
+                    )
 
                     # === C) MOVER SUBTAREAS ===
                     child_tasks = self.search(
@@ -856,402 +1058,49 @@ class Task(models.Model):
                         child_tasks.write({'project_id': new_project.id})
 
                     # === D) ACTUALIZAR GASTOS (HR.EXPENSE) ===
-                    # Verificamos si existe el campo y filtramos
-                    if 'expense_ids' in self.env['project.task']._fields:
-                        # 1. Separamos gastos: "Libres" vs "Bloqueados" (En reporte aprobado/posteado/pagado)
-                        all_expenses = task.expense_ids.filtered(
-                            lambda e: e.state not in ['done', 'refused'])
-
-                        expenses_free = all_expenses.filtered(
-                            lambda e: not e.sheet_id or e.sheet_id.state in ['draft', 'submit'])
-                        expenses_locked = all_expenses - expenses_free
-
-                        # CASO 1: Gastos Libres -> Usamos write estandard (con sudo)
-                        if expenses_free:
-                            vals_expense = {'project_id': new_project.id}
-                            if new_analytic:
-                                # Hay que iterar porque cada uno tiene su propia distribución
-                                for expense in expenses_free:
-                                    new_dist = self._get_updated_analytic_distribution(
-                                        expense.analytic_distribution, new_analytic.id, old_analytic.id
-                                    )
-                                    expense.sudo().write({
-                                        'project_id': new_project.id,
-                                        'analytic_distribution': new_dist
-                                    })
-                            else:
-                                expenses_free.sudo().write(vals_expense)
-
-                        # CASO 2: Gastos Bloqueados -> Actualizamos Proyecto Y Analítica vía SQL
-                        # Nota de seguridad: usamos parámetros bind (%s) en lugar de
-                        # interpolación de strings para evitar inyección SQL.
-                        if expenses_locked:
-                            _logger.info(
-                                "Forzando actualización de proyecto/analítica en %s gastos bloqueados", len(expenses_locked))
-
-                            for exp in expenses_locked:
-                                # Si hay nueva analítica, calculamos el JSON y lo actualizamos
-                                if new_analytic:
-                                    new_dist = self._get_updated_analytic_distribution(
-                                        exp.analytic_distribution, new_analytic.id, old_analytic.id
-                                    )
-                                    json_dist = json.dumps(new_dist)
-                                    # Usamos parámetros bind para project_id Y analytic_distribution
-                                    self.env.cr.execute(
-                                        """
-                                        UPDATE hr_expense
-                                        SET project_id = %s,
-                                            analytic_distribution = %s::jsonb
-                                        WHERE id = %s
-                                        """,
-                                        (new_project.id, json_dist, exp.id)
-                                    )
-                                else:
-                                    self.env.cr.execute(
-                                        """
-                                        UPDATE hr_expense
-                                        SET project_id = %s
-                                        WHERE id = %s
-                                        """,
-                                        (new_project.id, exp.id)
-                                    )
-
-                            # Invalidar caché
-                            expenses_locked.invalidate_recordset(
-                                ['project_id', 'analytic_distribution'])
+                    task._relocate_expenses(
+                        target_project=new_project,
+                        old_analytic=old_analytic,
+                        new_analytic=new_analytic,
+                        use_sql_for_locked=True,
+                    )
 
                     # === E) ACTUALIZAR COMPRAS (PURCHASE.ORDER) ===
-                    # 1. Buscar Órdenes de Compra vinculadas a esta tarea como cabecera
-                    purchase_orders = self.env['purchase.order'].search([
-                        ('task_order_id', '=', task.id),
-                        ('state', '!=', 'cancel')
-                    ])
-
-                    if purchase_orders:
-                        # Actualizar proyecto en cabecera
-                        purchase_orders.write({'project_id': new_project.id})
-
-                        # A) LÍNEAS DE COMPRA (Actualizar Proyecto y Analítica)
-                        lines_to_update = purchase_orders.mapped('order_line').filtered(
-                            lambda l: l.state != 'cancel'
-                        )
-                        if lines_to_update:
-                            vals_line = {
-                                'project_id': new_project.id,
-                                # Asegurar que NO se pierda la tarea (Corrección solicitada)
-                                'task_id': task.id
-                            }
-                            # Si hay analítica, forzamos actualización en TODAS las líneas de la orden
-                            if new_analytic:
-                                # Iteramos por si tienen distribuciones mixtas, aunque es pesado es seguro
-                                for line in lines_to_update:
-                                    _logger.debug("ANALYTIC: Old=%s, New=%s, Dist=%s",
-                                                  old_analytic.id, new_analytic.id, line.analytic_distribution)
-                                    dist = self._get_updated_analytic_distribution(
-                                        line.analytic_distribution, new_analytic.id, old_analytic.id)
-                                    _logger.debug(
-                                        "ANALYTIC RESULT: %s", dist)
-
-                                    line_vals = vals_line.copy()
-                                    line_vals['analytic_distribution'] = dist
-                                    line.write(line_vals)
-                            else:
-                                lines_to_update.write(vals_line)
-
-                        # B) ALBARANES (STOCK PICKING)
-                        pickings = purchase_orders.mapped('picking_ids').filtered(
-                            lambda p: p.state != 'cancel'
-                        )
-                        if pickings:
-                            # Propagar TAREA también
-                            pickings.write({
-                                'project_id': new_project.id,
-                                'task_id': task.id  # Corrección solicitada
-                            })
-
-                            # C) MOVIMIENTOS DE STOCK (STOCK MOVE)
-                            moves = pickings.mapped('move_ids').filtered(
-                                lambda m: m.state != 'cancel'
-                            )
-                            if moves:
-                                moves.write({
-                                    'project_id': new_project.id,
-                                    'task_id': task.id
-                                })
-
-                    # 2. Actualizar Distribución Analítica en líneas sueltas (linked directly)
-                    # (Esto cubre líneas que NO son de las órdenes de arriba, si hubiera)
-                    if 'purchase_line_ids' in self.env['project.task']._fields:
-                        # Buscamos líneas que NO fueron actualizadas arriba
-                        processed_orders = purchase_orders.ids if purchase_orders else []
-                        purchase_lines = task.purchase_line_ids.filtered(
-                            lambda l: l.state not in ['cancel', 'done'] and l.order_id.id not in processed_orders)
-
-                        if purchase_lines:
-                            _logger.info("Actualizando %s líneas de compra sueltas para tarea %s", len(
-                                purchase_lines), task.name)
-                            vals_line_loose = {'project_id': new_project.id}
-
-                            if new_analytic:
-                                for line in purchase_lines:
-                                    _logger.debug("ANALYTIC LOOSE: Old=%s, New=%s, Dist=%s",
-                                                  old_analytic.id if old_analytic else False, new_analytic.id, line.analytic_distribution)
-                                    new_dist_line = self._get_updated_analytic_distribution(
-                                        line.analytic_distribution, new_analytic.id, old_analytic.id
-                                    )
-                                    _logger.debug(
-                                        "ANALYTIC LOOSE RESULT: %s", new_dist_line)
-
-                                    curr_vals = vals_line_loose.copy()
-                                    curr_vals['analytic_distribution'] = new_dist_line
-                                    line.write(curr_vals)
-                            else:
-                                purchase_lines.write(vals_line_loose)
+                    task._relocate_purchase_documents(
+                        target_project=new_project,
+                        target_task=task,
+                        old_analytic=old_analytic,
+                        new_analytic=new_analytic,
+                    )
 
                     # === F) ACTUALIZAR TIMESHEETS ===
-                    if 'timesheet_ids' in self.env['project.task']._fields:
-                        timesheets_model = self.env['account.analytic.line']
-                        if 'timesheet_invoice_id' in timesheets_model._fields:
-                            timesheets = task.timesheet_ids.filtered(
-                                lambda t: not t.timesheet_invoice_id)
-                        else:
-                            timesheets = task.timesheet_ids
-
-                        if timesheets:
-                            ts_vals = {'project_id': new_project.id}
-                            if task.sale_line_id:
-                                ts_vals['so_line'] = task.sale_line_id.id
-                            timesheets.write(ts_vals)
+                    task._relocate_timesheets(target_project=new_project)
 
                     # === G) ACTUALIZAR MOVIMIENTOS DE ALMACÉN (STOCK.MOVE) ===
-                    # El usuario solicitó explícitamente que los movimientos de almacén también se muevan.
-                    if 'stock_move_ids' in self.env['project.task']._fields:
-                        moves_to_update = task.stock_move_ids.filtered(
-                            lambda m: m.state not in ['cancel', 'done']
-                        )
-                        # También podríamos incluir los 'done' si se requiere historial,
-                        # pero comúnmente solo se mueven los abiertos.
-                        # Si el cliente quiere TODOS (historial incluido), quitamos el filtro de state.
-                        # Asumiendo "que se muevan" implica reasignación total:
-                        moves_to_update = task.stock_move_ids
-                        if moves_to_update:
-                            moves_to_update.write(
-                                {'project_id': new_project.id})
+                    task._relocate_stock_moves(target_project=new_project)
 
                     # === H) RECALCULAR AVANCE (CRÍTICO - FUERZA BRUTA 2.0) ===
-                    # 1. Limpieza agresiva de cache
-                    # Aseguar que el search() vea los cambios de proyecto
-                    self.env['project.sub.update'].invalidate_model()
-                    task.invalidate_recordset()  # Invalidar TODO en la tarea
-
-                    # 2. Recalcular Unidades (Numerador)
-                    task._units()
-                    current_quant = task.quant_progress
-
-                    # 3. Obtener Total (Denominador) Fresco
-                    total_qty = 0.0
-                    if task.sale_line_id:
-                        # Leer directamente de la BD saltando caché posible
-                        linea = self.env['sale.order.line'].browse(
-                            task.sale_line_id.id)
-                        total_qty = linea.product_uom_qty
-
-                    # 4. Calcular Porcentajes manualmente
-                    new_progress = 0
-                    new_pct = 0.0
-
-                    if total_qty > 0 and current_quant > 0:
-                        new_progress_float = (current_quant / total_qty) * 100
-                        new_progress = min(100, int(new_progress_float))
-                        new_pct = new_progress_float / 100.0  # Usamos float preciso
-
-                    # 5. Escribir explícitamente los valores con SUDO
-                    _logger.info("FORCE UPDATE FINAL: Task %s | Quant: %s | Total: %s | Calc Progress: %s",
-                                 task.name, current_quant, total_qty, new_progress)
-
-                    task.sudo().write({
-                        'progress': new_progress,
-                        'progress_percentage': new_pct
-                    })
-
-                    pass
+                    task._recompute_progress_after_project_change()
 
                     # === I) ACTUALIZAR REQUISICIONES (EMPLOYEE.PURCHASE.REQUISITION) ===
-                    # Si existen requisiciones vinculadas, las movemos al nuevo proyecto.
-                    if 'requisition_ids' in self.env['project.task']._fields:
-                        requisitions_to_move = task.requisition_ids.filtered(
-                            # O mover todas si se prefiere historial completo:
-                            lambda r: r.state not in ['cancel']
-                        )
-
-                        for req in requisitions_to_move:
-                            # 1. Cabecera (Proyecto + Analítica)
-                            req_vals = {}
-                            if 'project_id' in self.env['employee.purchase.requisition']._fields:
-                                req_vals['project_id'] = new_project.id
-
-                            # Si tiene campo de distribución (algunos módulos lo tienen en cabecera)
-                            if 'analytic_distribution' in self.env['employee.purchase.requisition']._fields and new_analytic:
-                                # Hay que ver si se puede leer el actual, asumimos que sí
-                                curr_dist = req.analytic_distribution if hasattr(
-                                    req, 'analytic_distribution') else {}
-                                req_vals['analytic_distribution'] = self._get_updated_analytic_distribution(
-                                    curr_dist, new_analytic.id, old_analytic.id
-                                )
-
-                            if req_vals:
-                                req.write(req_vals)
-
-                            # 2. Líneas (requisition.order)
-                            if hasattr(req, 'requisition_order_ids') and req.requisition_order_ids:
-                                # Iteramos líneas para actualizar Proyecto + Analítica
-                                lines_req = req.requisition_order_ids
-                                if 'project_id' in self.env['requisition.order']._fields:
-                                    lines_req.write(
-                                        {'project_id': new_project.id})
-
-                                # Actualizar distribución en líneas
-                                if 'analytic_distribution' in self.env['requisition.order']._fields and new_analytic:
-                                    for l_req in lines_req:
-                                        dist_req = self._get_updated_analytic_distribution(
-                                            l_req.analytic_distribution, new_analytic.id, old_analytic.id)
-                                        l_req.write(
-                                            {'analytic_distribution': dist_req})
+                    task._relocate_requisitions(
+                        target_project=new_project,
+                        old_analytic=old_analytic,
+                        new_analytic=new_analytic,
+                        update_line_analytic=True,
+                    )
 
                     # === J) ACTUALIZAR HOJAS DE HORAS / REGULARIZACIONES (ATTENDANCE.REGULARIZATION) ===
-                    # Buscamos registros vinculados a esta tarea.
-                    # Asumimos que el modelo es 'attendance.regularization' y tiene 'task_id'.
-                    attendance_model = self.env.get(
-                        'attendance.regularization')
-                    if attendance_model is not None and 'task_id' in attendance_model._fields:
-                        attendance_recs = attendance_model.search([
-                            ('task_id', '=', task.id)
-                        ])
-                        if attendance_recs and 'project_id' in attendance_model._fields:
-                            attendance_recs.write(
-                                {'project_id': new_project.id})
-
-                    # === L) ACTUALIZAR COMPENSACIONES (COMPENSATION.REQUEST / LINE) ===
-                    # Buscamos de forma segura el modelo
-                    comp_line_model = self.env.get('compensation.line')
-                    if comp_line_model is not None and 'task_id' in comp_line_model._fields:
-                        # 1. Buscar líneas de compensación vinculadas a esta tarea
-                        comp_lines = comp_line_model.search(
-                            [('task_id', '=', task.id)])
-
-                        if comp_lines:
-                            # Actualizar proyecto en las líneas
-                            if 'project_id' in comp_line_model._fields:
-                                comp_lines.write(
-                                    {'project_id': new_project.id})
-
-                            # 2. Verificar cabeceras (request) para actualizar 'service' si unique_project es True
-                            # Obtenemos las cabeceras únicas afectadas
-                            comp_requests = comp_lines.mapped(
-                                'compensation_id')
-                            for req in comp_requests:
-                                # Verificamos existencia de campos en cabecera
-                                if 'unique_project' in req._fields and 'service' in req._fields:
-                                    if req.unique_project:
-                                        # Si el proyecto único está activo, actualizamos la cabecera también
-                                        # Nota: Esto asume que TODAS las líneas pertenecían al mismo proyecto anterior.
-                                        if req.service != new_project:
-                                            req.write(
-                                                {'service': new_project.id})
+                    task._relocate_auxiliary_task_models(target_project=new_project)
 
                     # === K) ACTUALIZAR SALE ORDER (Lógica "Última Tarea") ===
-                    if sale_order and sale_order.project_id == old_project:
-                        # Buscamos si quedan tareas (ACTIVAS o ARCHIVADAS) de esta venta en el viejo proyecto
-                        # Usamos active_test=False para encontrar tareas archivadas que podrían estar causando
-                        # que la venta siga vinculada al proyecto viejo (y por eso salen duplicados en el smart button).
-                        tasks_remaining_all = self.with_context(active_test=False).search_count([
-                            ('project_id', '=', old_project.id),
-                            ('sale_order_id', '=', sale_order.id)
-                        ])
-
-                        if tasks_remaining_all == 0:
-                            _logger.info(
-                                "Moviendo Orden de Venta %s al proyecto %s (Limpieza completa)", sale_order.name, new_project.name)
-                            sale_order.sudo().write(
-                                {'project_id': new_project.id})
-                        else:
-                            # Si quedan tareas (quizás archivadas), las movemos también para limpiar la casa?
-                            # O solo movemos la cabecera forzadamente?
-                            # Estrategia: Si solo quedan archivadas, movemos la cabecera y movemos las archivadas también.
-
-                            active_tasks = self.search_count([
-                                ('project_id', '=', old_project.id),
-                                ('sale_order_id', '=', sale_order.id)
-                            ])
-
-                            if active_tasks == 0 and tasks_remaining_all > 0:
-                                # Significa que solo quedan "Fantasmas" (archivadas).
-                                # Las movemos todas al nuevo proyecto para sanear.
-                                archived_tasks = self.with_context(active_test=False).search([
-                                    ('project_id', '=', old_project.id),
-                                    ('sale_order_id', '=', sale_order.id)
-                                ])
-                                _logger.info(
-                                    "Moviendo %s tareas archivadas restantes de la SO %s al nuevo proyecto",
-                                    len(archived_tasks), sale_order.name
-                                )
-                                archived_tasks.write(
-                                    {'project_id': new_project.id})
-
-                                # Y finalmente movemos la orden
-                                sale_order.sudo().write(
-                                    {'project_id': new_project.id})
+                    task._sync_sale_order_project_after_task_move(
+                        old_project=old_project,
+                        new_project=new_project,
+                        sale_order=sale_order,
+                    )
 
         return res
-
-    """
-    def _clean_invalid_references(self):
-        for task in self:
-            # Solo procesar tareas que tengan ID (ya guardadas)
-            if not task.id:
-                continue
-
-            for field_name, field in self._fields.items():
-                if field.type == "many2one" and field.store:
-                    try:
-                        value = getattr(task, field_name)
-
-                        # Fix for KeyError: 30 - forcefully clear stage_id 30
-                        # This ID seems to exist but causes read errors (possibly access rules or corruption)
-                        if value and value.id == 30:
-                            _logger.warning(
-                                "🧹 FORCE CLEANING problematic reference ID 30 in tarea %s (ID: %s): campo %s",
-                                task.name,
-                                task.id,
-                                field_name,
-                            )
-                            task.with_context(skip_invalid_ref_check=True).write(
-                                {field_name: False}
-                            )
-                            continue
-
-                        # Verificar si el valor existe pero el registro relacionado no
-                        if value and not value.exists():
-                            _logger.warning(
-                                "🧹 Limpiando referencia inválida en tarea %s (ID: %s): campo %s = %s",
-                                task.name,
-                                task.id,
-                                field_name,
-                                value.id if value else "False",
-                            )
-                            # Escribir solo si realmente cambiamos algo
-                            task.with_context(skip_invalid_ref_check=True).write(
-                                {field_name: False}
-                            )
-                    except Exception as e:
-                        # Silenciar errores de acceso, pero loguearlos para debugging
-                        _logger.debug(
-                            "Error verificando campo %s en tarea %s: %s",
-                            field_name,
-                            task.id,
-                            str(e),
-                        )
-    """
 
     def action_view_avances(self):
         return {
@@ -1742,49 +1591,10 @@ class Task(models.Model):
         'pending.service',
         string="Servicio Pendiente",
         ondelete="set null",
-        index=True,
         help="Servicio pendiente relacionado con la tarea."
     )
 
-    @api.constrains('servicio_pendiente', 'planned_date_begin', 'date_deadline')
-    def _check_task_dates_within_pending_range(self):
-        for task in self:
-            pending = task.servicio_pendiente
-            if not pending:
-                continue
-
-            task_start = task.planned_date_begin
-            task_end = task.date_deadline
-            pending_start = pending.date_start
-            pending_end = pending.date_end_plan
-
-            if task_start and task_end and task_start > task_end:
-                raise ValidationError(_(
-                    "La fecha de inicio de la tarea no puede ser mayor que la fecha límite."
-                ))
-
-            if task_start and pending_start and task_start < pending_start:
-                raise ValidationError(_(
-                    "La tarea '%(task)s' inicia fuera del rango del servicio pendiente '%(pending)s'. "
-                    "Inicio de tarea: %(task_start)s. Inicio permitido: %(pending_start)s."
-                ) % {
-                    'task': task.display_name,
-                    'pending': pending.display_name,
-                    'task_start': fields.Datetime.to_string(task_start),
-                    'pending_start': fields.Datetime.to_string(pending_start),
-                })
-
-            if task_end and pending_end and task_end > pending_end:
-                raise ValidationError(_(
-                    "La tarea '%(task)s' termina fuera del rango del servicio pendiente '%(pending)s'. "
-                    "Fin de tarea: %(task_end)s. Fin permitido: %(pending_end)s."
-                ) % {
-                    'task': task.display_name,
-                    'pending': pending.display_name,
-                    'task_end': fields.Datetime.to_string(task_end),
-                    'pending_end': fields.Datetime.to_string(pending_end),
-                })
-
+    ###Logica de Vista Unificada##############################
     avance_actual = fields.Float(
         string="Avance Físico Real (%)", compute="_compute_board_progress_metrics", store=True)
     avance_facturado = fields.Float(
@@ -1836,3 +1646,44 @@ class Task(models.Model):
                     'next': {'type': 'ir.actions.client', 'tag': 'soft_reload'},
                 }
             }
+    
+    @api.constrains('servicio_pendiente', 'planned_date_begin', 'date_deadline')
+    def _check_task_dates_within_pending_range(self):
+        for task in self:
+            pending = task.servicio_pendiente
+            if not pending:
+                continue
+
+            task_start = task.planned_date_begin
+            task_end = task.date_deadline
+            pending_start = pending.date_start
+            pending_end = pending.date_end_plan
+
+            if task_start and task_end and task_start > task_end:
+                raise ValidationError(_(
+                    "La fecha de inicio de la tarea no puede ser mayor que la fecha límite."
+                ))
+
+            if task_start and pending_start and task_start < pending_start:
+                raise ValidationError(_(
+                    "La tarea '%(task)s' inicia fuera del rango del servicio pendiente '%(pending)s'. "
+                    "Inicio de tarea: %(task_start)s. Inicio permitido: %(pending_start)s."
+                ) % {
+                    'task': task.display_name,
+                    'pending': pending.display_name,
+                    'task_start': fields.Datetime.to_string(task_start),
+                    'pending_start': fields.Datetime.to_string(pending_start),
+                })
+
+            if task_end and pending_end and task_end > pending_end:
+                raise ValidationError(_(
+                    "La tarea '%(task)s' termina fuera del rango del servicio pendiente '%(pending)s'. "
+                    "Fin de tarea: %(task_end)s. Fin permitido: %(pending_end)s."
+                ) % {
+                    'task': task.display_name,
+                    'pending': pending.display_name,
+                    'task_end': fields.Datetime.to_string(task_end),
+                    'pending_end': fields.Datetime.to_string(pending_end),
+                })
+
+    ##########################################################

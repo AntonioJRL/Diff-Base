@@ -104,23 +104,6 @@ class AnalyticsTaskDashboard(models.TransientModel):
             task_name = wizard.task_id.display_name if wizard.task_id else ''
             wizard.name = f"Tablero de {task_name}" if task_name else 'Tablero'
 
-    def _get_task_timesheets(self):
-        self.ensure_one()
-        return self.env['account.analytic.line'].sudo().search([
-            ('task_id', '=', self.task_id.id),
-        ])
-
-    def _get_timesheet_cost_breakdown(self):
-        self.ensure_one()
-        timesheets = self._get_task_timesheets()
-        timesheet_cost = sum(abs(line.amount) for line in timesheets)
-        return {
-            'timesheets': timesheets,
-            'cost': timesheet_cost,
-            'billed': timesheet_cost,
-            'to_bill': 0.0,
-        }
-
     @api.depends('task_id')
     def _compute_content(self):
         # Reúne datos (gastos aprobados y compras confirmadas) y renderiza la plantilla QWeb
@@ -160,10 +143,14 @@ class AnalyticsTaskDashboard(models.TransientModel):
                 expenses_to_bill = max(total_expenses - expenses_billed, 0.0)
 
             # --- Timesheets Logic ---
-            ts_data = wizard._get_timesheet_cost_breakdown()
-            timesheet_cost = ts_data['cost']
-            timesheet_billed = ts_data['billed']
-            timesheet_to_bill = ts_data['to_bill']
+            comp_lines = self.env['compensation.line'].search([
+                ('task_id', '=', wizard.task_id.id),
+                ('compensation_id.state', 'in', ['approved', 'applied'])
+            ])
+            timesheet_cost = sum(comp_lines.mapped('total_cost'))
+            timesheet_billed = sum(comp_lines.filtered(
+                lambda l: l.compensation_id.state == 'applied').mapped('total_cost'))
+            timesheet_to_bill = max(timesheet_cost - timesheet_billed, 0.0)
 
             # --- Stock Moves Logic ---
             stock_billed = wizard.task_id.stock_move_cost or 0.0
@@ -419,10 +406,14 @@ class AnalyticsTaskDashboard(models.TransientModel):
             stock_to_bill = 0.0
 
             # D. Hojas de Horas
-            ts_data = wizard._get_timesheet_cost_breakdown()
-            timesheet_cost = ts_data['cost']
-            timesheet_billed = ts_data['billed']
-            timesheet_to_bill = ts_data['to_bill']
+            comp_lines = self.env['compensation.line'].search([
+                ('task_id', '=', wizard.task_id.id),
+                ('compensation_id.state', 'in', ['approve', 'applied'])
+            ])
+            timesheet_cost = sum(comp_lines.mapped('total_cost'))
+            timesheet_billed = sum(comp_lines.filtered(
+                lambda l: l.compensation_id.state == 'applied').mapped('total_cost'))
+            timesheet_to_bill = max(timesheet_cost - timesheet_billed, 0.0)
 
             # --- 4. Asignación de Campos de Costos ---
             wizard.total_expenses = expenses_total
@@ -523,20 +514,26 @@ class AnalyticsTaskDashboard(models.TransientModel):
 
     def action_view_timesheets(self):
         """
-        Abre directamente las hojas de horas (account.analytic.line)
-        vinculadas a la tarea actual.
+        Abre las Solicitudes de Hojas de Horas (compensation.request) relacionadas
+        con la tarea actual a través de sus líneas (compensation.line).
         """
         self.ensure_one()
+
+        # 1. Buscar líneas de compensación vinculadas a la tarea
+        comp_lines = self.env['compensation.line'].search(
+            [('task_id', '=', self.task_id.id)]
+        )
+        # 2. Obtener los IDs únicos de las solicitudes de compensación asociadas
+        request_ids = comp_lines.mapped('compensation_id')
+
+        # 3. Retornar la acción hacia la compesation.requiest
         return {
             'type': 'ir.actions.act_window',
             'name': 'Hojas de horas',
-            'res_model': 'account.analytic.line',
-            'view_mode': 'list,form',
-            'domain': [('task_id', '=', self.task_id.id)],
-            'context': {
-                'default_task_id': self.task_id.id,
-                'default_project_id': self.task_id.project_id.id,
-            },
+            'res_model': 'compensation.request',
+            'view_mode': 'tree,form',
+            'domain': [('id', 'in', request_ids.ids)],
+            'context': {'create': False},
         }
 
     def action_view_sale_orders(self):

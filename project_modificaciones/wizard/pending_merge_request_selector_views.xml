@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<odoo>
+    <record id="pending_service_merge_selector_view_form" model="ir.ui.view">
+        <field name="name">pending.service.merge.selector.form</field>
+        <field name="model">pending.service.merge.selector</field>
+        <field name="arch" type="xml">
+            <form string="Fusión directa">
+                <field name="selected_service_ids" invisible="1"/>
+                <sheet>
+                    <group>
+                        <field name="servicio_o"
+                            domain="[('id', 'in', selected_service_ids)]"
+                            options="{'no_create': True, 'no_edit': True}"/>
+                        <field name="servicio_d"
+                            domain="[('id', 'in', selected_service_ids), ('id', '!=', servicio_o)]"
+                            options="{'no_create': True, 'no_edit': True}"/>
+                    </group>
+                </sheet>
+                <footer>
+                    <button name="action_open_fusion_wizard" string="Continuar"
+                        type="object" class="btn-primary"/>
+                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_pending_service_merge_selector" model="ir.actions.act_window">
+        <field name="name">Fusión directa</field>
+        <field name="res_model">pending.service.merge.selector</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="pending_service_merge_selector_view_form"/>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="model_pending_service"/>
+        <field name="binding_view_types">list</field>
+        <field name="groups_id" eval="[(4, ref('project_modificaciones.group_pending_service_merge_approver'))]"/>
+    </record>
+</odoo>

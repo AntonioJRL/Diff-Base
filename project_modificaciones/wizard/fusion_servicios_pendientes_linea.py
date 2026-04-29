@@ -1,7 +1,7 @@
 from odoo import fields, models
 
 class FusionServiciosPendientesLineas(models.TransientModel):
-    _name = 'fusion.servicios.pendientes.linea'   # ← sin 's' al final
+    _name = 'fusion.servicios.pendientes.linea'  
     _description = 'Línea de Fusión de Servicios Pendientes'
 
     wizard_id = fields.Many2one(

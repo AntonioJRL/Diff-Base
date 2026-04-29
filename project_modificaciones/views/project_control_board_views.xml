@@ -78,37 +78,62 @@
                         calculables. <a name="action_open_origin" type="object" class="ms-2">Ir a la
                         OS →</a>
                     </div>
-                    <group>
-                        <group>
+                    <div class="oe_title mb-3">
+                        <label for="name" class="oe_edit_only" />
+                        <h1>
                             <field name="name" readonly="1" />
-                            <field name="source" readonly="1" />
-                            <field name="priority" readonly="1" />
-                            <field name="company_id" readonly="1" />
+                        </h1>
+                        <div class="text-muted mt-1">
+                            <span class="me-3">
+                                <strong>Origen:</strong>
+                                <field name="source" readonly="1" class="ms-1" />
+                            </span>
+                            <span>
+                                <strong>Prioridad:</strong>
+                                <field name="priority" readonly="1" class="ms-1" />
+                            </span>
+                        </div>
+                    </div>
+
+                    <group col="2">
+                        <group string="Identificación">
                             <field name="cliente_id" readonly="1" />
+                            <field name="company_id" readonly="1" />
                             <field name="disciplina_id" readonly="1" />
                             <field name="supervisor_id" readonly="1" />
                         </group>
-                        <group>
+                        <group string="Seguimiento">
                             <field name="state" readonly="1" />
                             <field name="lifecycle_stage" readonly="1" />
+                            <field name="kanban_color" readonly="1" />
+                            <field name="vencimiento_label" readonly="1" />
+                            <field name="dias_al_vencimiento" readonly="1" invisible="1" />
+                        </group>
+                    </group>
+
+                    <group col="2">
+                        <group string="Avance">
+                            <field name="avance" readonly="1" />
+                            <field name="avance_planeado" readonly="1" />
+                            <field name="avance_facturado" readonly="1" />
+                            <field name="task_count" readonly="1" />
+                            <field name="task_done_count" readonly="1" />
+                        </group>
+                        <group string="Facturación">
                             <field name="invoice_substate_id" readonly="1" />
                             <field name="invoice_count" readonly="1" />
                             <field name="invoice_move_id" readonly="1" invisible="not invoice_move_id" />
-                            <field name="kanban_color" readonly="1" />
-                            <field name="avance" readonly="1" />
-                            <field name="vencimiento_label" readonly="1" />
-                            <field name="dias_al_vencimiento" readonly="1" invisible="1"/>
+                            <field name="total_amount" readonly="1" />
+                            <field name="qty_total" readonly="1" />
                         </group>
                     </group>
+
                     <group>
-                        <group>
+                        <group string="Planeación">
                             <field name="date_start" readonly="1" />
                             <field name="date_end" readonly="1" />
                             <field name="date_end_actual" readonly="1" />
-                        </group>
-                        <group>
-                            <field name="pending_id" readonly="1" invisible="source != 'pending'" />
-                            <field name="sale_id" readonly="1" invisible="source != 'sale'" />
+                            <field name="create_date" readonly="1" />
                         </group>
                     </group>
 
@@ -249,6 +274,7 @@
                 
                 <separator string="Etapas de la Facturación" />
                 <filter name="sin_cobrar_fac" string="Sin Cobrar" domain="[('invoice_substate_id', '!=', 7)]"/>
+                <filter name="por_cobrar_fac" string="Por Cobrar" domain="[('invoice_substate_id', '=', 7)]"/>
 
                 <separator string="Con tarea asociada" />
                 <filter name="con_tarea_aso" string="Con tarea asociada"
@@ -347,7 +373,6 @@
                 <field name="name" />
                 <field name="source" />
                 <field name="pending_id" />
-                <field name="sale_id" />
                 <field name="cliente_id" />
                 <field name="disciplina_id" />
                 <field name="supervisor_id" />
@@ -404,7 +429,7 @@
                                     <a name="action_open_origin" type="object"
                                         class="o_text_overflow text-dark fw-bold text-truncate text-decoration-none"
                                         style="max-width: 100%; font-size: 12px; line-height: 1.1;"
-                                        t-att-title="record.source.raw_value == 'sale' ? 'Abrir orden de venta origen' : 'Abrir servicio pendiente origen'">
+                                        t-att-title="record.name.value or (record.source.raw_value == 'sale' ? 'Abrir orden de venta origen' : 'Abrir servicio pendiente origen')">
                                         <field name="name" />
                                     </a>
                                 </div>

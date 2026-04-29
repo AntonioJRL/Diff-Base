@@ -129,7 +129,7 @@
                                 placeholder="Proyectos…"
                                 options="{'no_create': True}"
                                 force_save="1"
-                                domain="[('is_proyecto_obra', '=', True)]"
+                                domain="[('is_proyecto_obra', '=', True)] + ([('ubicacion', 'in', ubicacion_ids)] if ubicacion_ids else []) + ([('partner_id', 'in', partner_filter_ids)] if partner_filter_ids else [])"
                                 class="flex-grow-1" />
                         </div>
 

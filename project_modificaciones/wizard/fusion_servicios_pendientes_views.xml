@@ -3,43 +3,58 @@
     <record id="fusion_servicios_pendientes_view_form" model="ir.ui.view">
         <field name="name">fusion.servicios.pendientes.form</field>
         <field name="model">fusion.servicios.pendientes</field>
+        <field name="groups_id"
+            eval="[(4, ref('project_modificaciones.group_pending_service_merge_approver'))]" />
         <field name="arch" type="xml">
             <form string="Reasignación / Fusión de Servicios Pendientes">
-                <field name="is_fusionable" invisible="1"/>
+                <field name="is_fusionable" invisible="1" />
+                <field name="pending_merge_request_id" invisible="1" />
+                <field name="from_merge_request" invisible="1" />
+                <field name="direct_merge_locked" invisible="1" />
+                <field name="operation_locked" invisible="1" />
 
                 <sheet>
-                    <group>
-                        <group string="Configuración">
-                            <field name="proceso" widget="radio" options="{'horizontal': true}"/>
-                            <field name="modo_fusion" widget="radio" options="{'horizontal': true}"
-                                invisible="proceso != 'reasignacion'"/>
+                    <group string="Configuración">
+                        <group>
+                            <field name="proceso" widget="radio" options="{'horizontal': true}"
+                                readonly="operation_locked" />
+
+                            <field name="modo_reasignacion" widget="radio"
+                                options="{'horizontal': true}"
+                                invisible="proceso != 'reasignacion'"
+                                readonly="operation_locked" />
+                        </group>
+                        <group>
                             <field name="servicio_o"
-                                string="Servicio pendiente origen"
+                                string="Servicio P. Origen"
+                                readonly="operation_locked"
                                 domain="[('state','not in',['assigned','canceled']),('sale_order_id','=',False)]"
                                 options="{'no_create': True, 'no_edit': True}" />
+
                             <field name="servicio_d"
-                                string="Servicio pendiente destino"
-                                invisible="proceso == 'reasignacion' and modo_fusion != 'todo'"
-                                options="{'no_create': True, 'no_edit': True}" 
-                                domain="[('state','not in',['assigned','canceled']),('sale_order_id','=',False), ('id', '!=', servicio_o)]"/>
+                                string="Servicio P. Destino"
+                                invisible="proceso == 'reasignacion' and modo_reasignacion != 'todo'"
+                                readonly="operation_locked"
+                                options="{'no_create': True, 'no_edit': True}"
+                                domain="[('state','not in',['assigned','canceled']),('sale_order_id','=',False), ('id', '!=', servicio_o)]" />
                         </group>
-                        <group string="Impacto Estimado">
+                        <!-- <group string="Impacto Estimado">
                             <field name="total_lineas_origen" readonly="1"/>
                             <field name="total_lineas_a_mover" readonly="1"/>
                             <field name="total_tareas_afectadas" readonly="1"/>
                             <field name="total_avances_afectados" readonly="1"/>
                             <field name="total_destinos" readonly="1"/>
-                        </group>
+                        </group> -->
                     </group>
 
                     <div class="alert alert-danger" role="alert" invisible="is_fusionable">
-                        <field name="mensaje_validacion" nolabel="1" readonly="1" widget="html"/>
+                        <field name="mensaje_validacion" nolabel="1" readonly="1" widget="html" />
                     </div>
                     <div class="alert alert-success" role="alert" invisible="not is_fusionable">
-                        <field name="mensaje_validacion" nolabel="1" readonly="1" widget="html"/>
+                        <field name="mensaje_validacion" nolabel="1" readonly="1" widget="html" />
                     </div>
 
-                    <group col="4">
+                    <!-- <group col="4">
                         <group string="Origen" colspan="2">
                             <field name="cliente_o" readonly="1"/>
                             <field name="planta_o" readonly="1"/>
@@ -48,7 +63,8 @@
                             <field name="fp_inicio_o" readonly="1"/>
                             <field name="fp_fin_o" readonly="1"/>
                         </group>
-                        <group string="Destino" colspan="2" invisible="proceso == 'reasignacion' and modo_fusion != 'todo'">
+                        <group string="Destino" colspan="2" invisible="proceso == 'reasignacion' and modo_reasignacion !=
+                    'todo'">
                             <field name="cliente_d" readonly="1"/>
                             <field name="planta_d" readonly="1"/>
                             <field name="disciplina_d" readonly="1"/>
@@ -56,45 +72,47 @@
                             <field name="fp_inicio_d" readonly="1"/>
                             <field name="fp_fin_d" readonly="1"/>
                         </group>
-                    </group>
+                    </group> -->
 
                     <group string="Resumen de la Operación" col="2">
-                        <div class="alert alert-info" role="alert" invisible="proceso != 'reasignacion' or modo_fusion != 'todo'" colspan="2" >
-                            <div>
-                                Se moverán <field name="total_lineas_origen" nolabel="1" class="oe_inline" readonly="1"/> línea(s)
-                                al servicio destino seleccionado.
-                            </div>
-                            <div>
-                                Se reasignarán <field name="total_tareas_afectadas" nolabel="1" class="oe_inline" readonly="1"/> tarea(s)
-                                y <field name="total_avances_afectados" nolabel="1" class="oe_inline" readonly="1"/> avance(s).
-                            </div>
+                        <div class="alert alert-info" role="alert"
+                            invisible="proceso != 'reasignacion' or modo_reasignacion != 'todo'"
+                            colspan="2">
+                            <div> Se moverán <field name="total_lineas_origen" nolabel="1"
+                                    class="oe_inline" readonly="1" /> línea(s) al servicio destino
+                                seleccionado. </div>
+                            <div> Se reasignarán <field name="total_tareas_afectadas" nolabel="1"
+                                    class="oe_inline" readonly="1" /> tarea(s) y <field
+                                    name="total_avances_afectados" nolabel="1" class="oe_inline"
+                                    readonly="1" /> avance(s). </div>
                             <div>El servicio origen se archivará al finalizar.</div>
                         </div>
-                        <div class="alert alert-info" role="alert" invisible="proceso != 'reasignacion' or modo_fusion != 'por_linea'" colspan="2">
-                            <div>
-                                Se moverán <field name="total_lineas_a_mover" nolabel="1" class="oe_inline" readonly="1"/> línea(s)
-                                con destino asignado en la tabla inferior.
-                            </div>
-                            <div>
-                                Se reasignarán <field name="total_tareas_afectadas" nolabel="1" class="oe_inline" readonly="1"/> tarea(s)
-                                asociadas a las líneas movidas, según el destino de cada línea.
-                            </div>
-                            <div>
-                                Los <field name="total_avances_afectados" nolabel="1" class="oe_inline" readonly="1"/> avance(s)
-                                del origen se enviarán al destino con más líneas asignadas.
-                            </div>
+                        <div class="alert alert-info" role="alert"
+                            invisible="proceso != 'reasignacion' or modo_reasignacion != 'por_linea'"
+                            colspan="2">
+                            <div> Se moverán <field name="total_lineas_a_mover" nolabel="1"
+                                    class="oe_inline" readonly="1" /> línea(s) con destino asignado
+                                en la tabla inferior. </div>
+                            <div> Se reasignarán <field name="total_tareas_afectadas" nolabel="1"
+                                    class="oe_inline" readonly="1" /> tarea(s) asociadas a las
+                                líneas movidas, según el destino de cada línea. </div>
+                            <div> Los <field name="total_avances_afectados" nolabel="1"
+                                    class="oe_inline" readonly="1" /> avance(s) del origen se
+                                enviarán al destino con más líneas asignadas. </div>
                             <div>Las líneas sin destino permanecerán en el servicio origen.</div>
                         </div>
-                        <div class="alert alert-info" role="alert" invisible="proceso != 'fusion'" colspan="2">
+                        <div class="alert alert-info" role="alert" invisible="proceso != 'fusion'"
+                            colspan="2">
+                            <div> Se fusionarán <field name="total_lineas_a_mover" nolabel="1"
+                                    class="oe_inline" readonly="1" /> línea(s) del origen en
+                                línea(s) existentes del servicio destino. </div>
                             <div>
-                                Se fusionarán <field name="total_lineas_a_mover" nolabel="1" class="oe_inline" readonly="1"/> línea(s)
-                                del origen en línea(s) existentes del servicio destino.
+                                Los avances y tareas relacionadas se migrarán a la línea destino
+                                cuando aplique.
                             </div>
                             <div>
-                                Los avances y tareas relacionadas se migrarán a la línea destino cuando aplique.
-                            </div>
-                            <div>
-                                La línea origen se eliminará después de integrarse en la línea destino.
+                                La línea origen se eliminará después de integrarse en la línea
+                                destino.
                             </div>
                         </div>
                     </group>
@@ -103,49 +121,52 @@
                         <page string="Líneas del Origen">
                             <field name="linea_servicio_o" nolabel="1">
                                 <tree create="0" delete="0">
-                                    <field name="partida"/>
-                                    <field name="product_id"/>
-                                    <field name="quantity"/>
-                                    <field name="task_id"/>
-                                    <field name="total_avances"/>
-                                    <field name="price_unit"/>
-                                    <field name="total"/>
+                                    <field name="partida" />
+                                    <field name="product_id" />
+                                    <field name="quantity" />
+                                    <field name="task_id" />
+                                    <field name="total_avances" />
+                                    <field name="price_unit" />
+                                    <field name="total" />
                                 </tree>
                             </field>
                         </page>
 
-                        <page string="Destino Global" invisible="proceso != 'reasignacion' or modo_fusion != 'todo'">
+                        <page string="Destino Global"
+                            invisible="proceso != 'reasignacion' or modo_reasignacion != 'todo'">
                             <field name="linea_servicio_d" nolabel="1">
                                 <tree create="0" delete="0">
-                                    <field name="partida"/>
-                                    <field name="product_id"/>
-                                    <field name="quantity"/>
-                                    <field name="task_id"/>
-                                    <field name="total_avances"/>
-                                    <field name="price_unit"/>
-                                    <field name="total"/>
+                                    <field name="partida" />
+                                    <field name="product_id" />
+                                    <field name="quantity" />
+                                    <field name="task_id" />
+                                    <field name="total_avances" />
+                                    <field name="price_unit" />
+                                    <field name="total" />
                                 </tree>
                             </field>
                         </page>
 
-                        <page string="Procesamiento por Línea" invisible="proceso == 'reasignacion' and modo_fusion == 'todo'">
+                        <page string="Procesamiento por Línea"
+                            invisible="proceso == 'reasignacion' and modo_reasignacion == 'todo'">
                             <field name="lineas_seleccion" nolabel="1">
                                 <tree editable="bottom" create="0" delete="0">
-                                    <field name="linea_id" column_invisible="1"/>
-                                    <field name="partida_linea" readonly="1"/>
-                                    <field name="producto_id" readonly="1"/>
-                                    <field name="cantidad" readonly="1"/>
-                                    <field name="task_id" readonly="1"/>
-                                    <field name="total_linea" readonly="1"/>
+                                    <field name="linea_id" column_invisible="1" />
+                                    <field name="partida_linea" readonly="1" />
+                                    <field name="producto_id" readonly="1" />
+                                    <field name="cantidad" readonly="1" />
+                                    <field name="task_id" readonly="1" />
+                                    <field name="total_linea" readonly="1" />
                                     <field name="servicio_destino"
-                                        column_invisible="parent.proceso != 'reasignacion' or parent.modo_fusion != 'por_linea'"
-                                        required="parent.proceso == 'reasignacion' and parent.modo_fusion == 'por_linea'"
-                                        domain="[('state','not in',['assigned','canceled']),('sale_order_id','=',False), ('id', '!=', parent.servicio_o)]"/>
+                                        column_invisible="parent.proceso != 'reasignacion' or parent.modo_reasignacion != 'por_linea'"
+                                        required="parent.proceso == 'reasignacion' and parent.modo_reasignacion == 'por_linea'"
+                                        readonly="parent.operation_locked"
+                                        domain="[('state','not in',['assigned','canceled']),('sale_order_id','=',False), ('id', '!=', parent.servicio_o)]" />
                                     <field name="linea_destino_id"
                                         column_invisible="parent.proceso != 'fusion'"
                                         required="parent.proceso == 'fusion'"
                                         force_save="1"
-                                        domain="[('service_id', '=', parent.servicio_d), ('product_id', '=', producto_id)]"/>
+                                        domain="[('service_id', '=', parent.servicio_d), ('product_id', '=', producto_id)]" />
                                 </tree>
                             </field>
                         </page>
@@ -154,8 +175,8 @@
 
                 <footer>
                     <button name="fusionar_servicios" string="Ejecutar Proceso"
-                            type="object" class="btn-primary" invisible="not is_fusionable"/>
-                    <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                        type="object" class="btn-primary" invisible="not is_fusionable" />
+                    <button string="Cancelar" class="btn-secondary" special="cancel" />
                 </footer>
             </form>
         </field>
@@ -166,6 +187,8 @@
         <field name="res_model">fusion.servicios.pendientes</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
-        <field name="view_id" ref="fusion_servicios_pendientes_view_form"/>
+        <field name="view_id" ref="fusion_servicios_pendientes_view_form" />
+        <field name="groups_id"
+            eval="[(4, ref('project_modificaciones.group_pending_service_merge_approver'))]" />
     </record>
 </odoo>
